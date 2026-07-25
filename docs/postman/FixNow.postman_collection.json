@@ -1,0 +1,380 @@
+{
+  "info": {
+    "_postman_id": "5bb8c0bc-26cb-44e6-9af7-fixnow-collection",
+    "name": "FixNow API",
+    "description": "Production-ready Postman Collection for the FixNow backend.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000/api" },
+    { "key": "customer_token", "value": "" },
+    { "key": "provider_token", "value": "" },
+    { "key": "admin_token", "value": "" },
+    { "key": "category_id", "value": "1" },
+    { "key": "service_id", "value": "1" },
+    { "key": "address_id", "value": "1" },
+    { "key": "booking_id", "value": "" },
+    { "key": "payment_id", "value": "" },
+    { "key": "provider_profile_id", "value": "" },
+    { "key": "assignment_id", "value": "" },
+    { "key": "review_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register Customer",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Priya Verma\",\n  \"email\": \"customer+qa@example.com\",\n  \"password\": \"Password123!\",\n  \"password_confirmation\": \"Password123!\",\n  \"device_name\": \"postman-customer\"\n}"
+            },
+            "url": "{{base_url}}/auth/register/customer"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const json = pm.response.json();",
+                "if (json?.data?.token) pm.collectionVariables.set('customer_token', json.data.token);"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "Register Provider",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Rahul Sharma\",\n  \"email\": \"provider+qa@example.com\",\n  \"password\": \"Password123!\",\n  \"password_confirmation\": \"Password123!\",\n  \"device_name\": \"postman-provider\"\n}"
+            },
+            "url": "{{base_url}}/auth/register/provider"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const json = pm.response.json();",
+                "if (json?.data?.token) pm.collectionVariables.set('provider_token', json.data.token);"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "Login Customer",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer@fixnow.test\",\n  \"password\": \"Password123!\",\n  \"device_name\": \"postman-customer\"\n}"
+            },
+            "url": "{{base_url}}/auth/login"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const json = pm.response.json();",
+                "if (json?.data?.token) pm.collectionVariables.set('customer_token', json.data.token);"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "Login Provider",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"provider1@fixnow.test\",\n  \"password\": \"Password123!\",\n  \"device_name\": \"postman-provider\"\n}"
+            },
+            "url": "{{base_url}}/auth/login"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const json = pm.response.json();",
+                "if (json?.data?.token) pm.collectionVariables.set('provider_token', json.data.token);"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "Login Admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@fixnow.test\",\n  \"password\": \"Password123!\",\n  \"device_name\": \"postman-admin\"\n}"
+            },
+            "url": "{{base_url}}/auth/login"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "const json = pm.response.json();",
+                "if (json?.data?.token) pm.collectionVariables.set('admin_token', json.data.token);"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customer_token}}" }],
+            "url": "{{base_url}}/auth/me"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{customer_token}}" }],
+            "url": "{{base_url}}/auth/logout"
+          }
+        },
+        {
+          "name": "Google Login",
+          "item": [
+            {
+              "name": "Get Redirect URL",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/auth/google/redirect"
+              }
+            },
+            {
+              "name": "Google Callback",
+              "request": {
+                "method": "GET",
+                "url": "{{base_url}}/auth/google/callback?code=replace-me"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        { "name": "List Categories", "request": { "method": "GET", "url": "{{base_url}}/categories" } },
+        { "name": "List Category Services", "request": { "method": "GET", "url": "{{base_url}}/categories/{{category_id}}/services" } }
+      ]
+    },
+    {
+      "name": "Services",
+      "item": [
+        { "name": "List Services", "request": { "method": "GET", "url": "{{base_url}}/services" } }
+      ]
+    },
+    {
+      "name": "Customer",
+      "item": [
+        {
+          "name": "Addresses",
+          "item": [
+            { "name": "List Addresses", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{customer_token}}" }], "url": "{{base_url}}/customer/addresses" } },
+            {
+              "name": "Create Address",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer {{customer_token}}" }, { "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"label\": \"Home\",\n  \"contact_person\": \"Priya Verma\",\n  \"contact_phone\": \"9876500010\",\n  \"address_line_1\": \"12 MG Road\",\n  \"address_line_2\": \"Apartment 4B\",\n  \"landmark\": \"Near Metro Station\",\n  \"city\": \"Bengaluru\",\n  \"state\": \"Karnataka\",\n  \"postal_code\": \"560001\",\n  \"latitude\": 12.9716,\n  \"longitude\": 77.5946,\n  \"is_default\": true\n}" },
+                "url": "{{base_url}}/customer/addresses"
+              },
+              "event": [{ "listen": "test", "script": { "exec": ["const json = pm.response.json();", "if (json?.data?.id) pm.collectionVariables.set('address_id', json.data.id);"] } }]
+            },
+            { "name": "Show Address", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{customer_token}}" }], "url": "{{base_url}}/customer/addresses/{{address_id}}" } },
+            { "name": "Update Address", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{customer_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"landmark\": \"Updated Landmark\"\n}" }, "url": "{{base_url}}/customer/addresses/{{address_id}}" } },
+            { "name": "Set Default Address", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{customer_token}}" }], "url": "{{base_url}}/customer/addresses/{{address_id}}/default" } },
+            { "name": "Delete Address", "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{customer_token}}" }], "url": "{{base_url}}/customer/addresses/{{address_id}}" } }
+          ]
+        },
+        {
+          "name": "Bookings",
+          "item": [
+            { "name": "List Bookings", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{customer_token}}" }], "url": "{{base_url}}/customer/bookings" } },
+            {
+              "name": "Create Booking",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer {{customer_token}}" }, { "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"customer_address_id\": {{address_id}},\n  \"booking_date\": \"2026-07-25\",\n  \"booking_time\": \"10:30\",\n  \"service_charge\": 50,\n  \"tax\": 25,\n  \"discount\": 0,\n  \"services\": [\n    {\n      \"service_id\": {{service_id}},\n      \"quantity\": 1\n    }\n  ]\n}" },
+                "url": "{{base_url}}/customer/bookings"
+              },
+              "event": [{ "listen": "test", "script": { "exec": ["const json = pm.response.json();", "if (json?.data?.booking?.id) pm.collectionVariables.set('booking_id', json.data.booking.id);"] } }]
+            },
+            { "name": "Show Booking", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{customer_token}}" }], "url": "{{base_url}}/customer/bookings/{{booking_id}}" } },
+            { "name": "Cancel Booking", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{customer_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"remarks\": \"Customer requested cancellation\"\n}" }, "url": "{{base_url}}/customer/bookings/{{booking_id}}/cancel" } }
+          ]
+        },
+        {
+          "name": "Payments",
+          "item": [
+            {
+              "name": "Create Payment",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer {{customer_token}}" }, { "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"payment_method\": \"online\",\n  \"gateway\": \"simulated\"\n}" },
+                "url": "{{base_url}}/customer/bookings/{{booking_id}}/payment"
+              },
+              "event": [{ "listen": "test", "script": { "exec": ["const json = pm.response.json();", "if (json?.data?.payment?.id) pm.collectionVariables.set('payment_id', json.data.payment.id);"] } }]
+            },
+            { "name": "Show Payment", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{customer_token}}" }], "url": "{{base_url}}/customer/bookings/{{booking_id}}/payment" } }
+          ]
+        },
+        {
+          "name": "Reviews",
+          "item": [
+            {
+              "name": "Create Review",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer {{customer_token}}" }, { "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Excellent service.\"\n}" },
+                "url": "{{base_url}}/customer/bookings/{{booking_id}}/review"
+              },
+              "event": [{ "listen": "test", "script": { "exec": ["const json = pm.response.json();", "if (json?.data?.review?.id) pm.collectionVariables.set('review_id', json.data.review.id);"] } }]
+            },
+            { "name": "List Reviews", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{customer_token}}" }], "url": "{{base_url}}/customer/reviews" } },
+            { "name": "Show Review", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{customer_token}}" }], "url": "{{base_url}}/customer/reviews/{{review_id}}" } },
+            { "name": "Update Review", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{customer_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"rating\": 4,\n  \"comment\": \"Updated feedback\"\n}" }, "url": "{{base_url}}/customer/reviews/{{review_id}}" } }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Provider",
+      "item": [
+        {
+          "name": "Profile",
+          "item": [
+            { "name": "Show Provider Profile", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{provider_token}}" }], "url": "{{base_url}}/provider/profile" } },
+            {
+              "name": "Create Provider Profile",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer {{provider_token}}" }],
+                "body": { "mode": "formdata", "formdata": [{ "key": "about", "value": "Experienced provider" }, { "key": "experience_years", "value": "5" }] },
+                "url": "{{base_url}}/provider/profile"
+              },
+              "event": [{ "listen": "test", "script": { "exec": ["const json = pm.response.json();", "if (json?.data?.provider?.id) pm.collectionVariables.set('provider_profile_id', json.data.provider.id);"] } }]
+            },
+            {
+              "name": "Update Provider Profile",
+              "request": {
+                "method": "PATCH",
+                "header": [{ "key": "Authorization", "value": "Bearer {{provider_token}}" }],
+                "body": { "mode": "formdata", "formdata": [{ "key": "about", "value": "Updated provider profile" }] },
+                "url": "{{base_url}}/provider/profile"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Availability",
+          "item": [
+            { "name": "Show Availability", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{provider_token}}" }], "url": "{{base_url}}/provider/availability" } },
+            { "name": "Create Availability", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{provider_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"is_available\": true,\n  \"available_from\": \"09:00\",\n  \"available_until\": \"18:00\",\n  \"notes\": \"Weekday schedule\"\n}" }, "url": "{{base_url}}/provider/availability" } },
+            { "name": "Update Availability", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{provider_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Updated availability\"\n}" }, "url": "{{base_url}}/provider/availability" } }
+          ]
+        },
+        {
+          "name": "Assignments",
+          "item": [
+            { "name": "List Assignments", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{provider_token}}" }], "url": "{{base_url}}/provider/assignments" } },
+            { "name": "Show Assignment", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{provider_token}}" }], "url": "{{base_url}}/provider/assignments/{{assignment_id}}" } },
+            { "name": "Accept Assignment", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{provider_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Accepted from Postman\"\n}" }, "url": "{{base_url}}/provider/assignments/{{assignment_id}}/accept" } },
+            { "name": "Reject Assignment", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{provider_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"rejection_reason\": \"Not available\"\n}" }, "url": "{{base_url}}/provider/assignments/{{assignment_id}}/reject" } },
+            { "name": "Complete Assignment", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{provider_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Work completed\"\n}" }, "url": "{{base_url}}/provider/assignments/{{assignment_id}}/complete" } }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Categories",
+          "item": [
+            { "name": "List Categories", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }], "url": "{{base_url}}/admin/categories" } },
+            { "name": "Create Category", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Carpentry\",\n  \"status\": \"active\"\n}" }, "url": "{{base_url}}/admin/categories" } },
+            { "name": "Show Category", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }], "url": "{{base_url}}/admin/categories/{{category_id}}" } },
+            { "name": "Update Category", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"description\": \"Updated category description\"\n}" }, "url": "{{base_url}}/admin/categories/{{category_id}}" } },
+            { "name": "Delete Category", "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }], "url": "{{base_url}}/admin/categories/{{category_id}}" } }
+          ]
+        },
+        {
+          "name": "Services",
+          "item": [
+            { "name": "List Services", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }], "url": "{{base_url}}/admin/services" } },
+            {
+              "name": "Create Service",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }, { "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"category_id\": {{category_id}},\n  \"name\": \"Window Cleaning\",\n  \"estimated_duration\": 60,\n  \"base_price\": 499,\n  \"status\": \"active\"\n}" },
+                "url": "{{base_url}}/admin/services"
+              }
+            },
+            { "name": "Show Service", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }], "url": "{{base_url}}/admin/services/{{service_id}}" } },
+            { "name": "Update Service", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"base_price\": 599\n}" }, "url": "{{base_url}}/admin/services/{{service_id}}" } },
+            { "name": "Delete Service", "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }], "url": "{{base_url}}/admin/services/{{service_id}}" } }
+          ]
+        },
+        {
+          "name": "Provider Approval",
+          "item": [
+            { "name": "List Pending Providers", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }], "url": "{{base_url}}/admin/providers/pending" } },
+            { "name": "List Providers", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }], "url": "{{base_url}}/admin/providers" } },
+            { "name": "Show Provider", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }], "url": "{{base_url}}/admin/providers/{{provider_profile_id}}" } },
+            { "name": "Approve Provider", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }], "url": "{{base_url}}/admin/providers/{{provider_profile_id}}/approve" } },
+            { "name": "Reject Provider", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }], "url": "{{base_url}}/admin/providers/{{provider_profile_id}}/reject" } }
+          ]
+        },
+        {
+          "name": "Provider Assignment",
+          "item": [
+            {
+              "name": "Create Assignment",
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }, { "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Operational assignment\"\n}" },
+                "url": "{{base_url}}/admin/bookings/{{booking_id}}/assign"
+              },
+              "event": [{ "listen": "test", "script": { "exec": ["const json = pm.response.json();", "if (json?.data?.assignment?.id) pm.collectionVariables.set('assignment_id', json.data.assignment.id);"] } }]
+            }
+          ]
+        },
+        {
+          "name": "Payments",
+          "item": [
+            { "name": "Mark Online Success", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"gateway_transaction_id\": \"TXN-POSTMAN-001\"\n}" }, "url": "{{base_url}}/admin/payments/{{payment_id}}/success" } },
+            { "name": "Mark Online Failed", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Gateway declined\"\n}" }, "url": "{{base_url}}/admin/payments/{{payment_id}}/failed" } },
+            { "name": "Mark COD Paid", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Collected on completion\"\n}" }, "url": "{{base_url}}/admin/payments/{{payment_id}}/cod-paid" } }
+          ]
+        },
+        {
+          "name": "Reviews",
+          "item": [
+            { "name": "List Reviews", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }], "url": "{{base_url}}/admin/reviews" } },
+            { "name": "Show Review", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }], "url": "{{base_url}}/admin/reviews/{{review_id}}" } }
+          ]
+        }
+      ]
+    }
+  ]
+}
