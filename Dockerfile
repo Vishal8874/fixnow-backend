@@ -12,7 +12,8 @@ RUN apt-get update \
         opcache \
         pcntl \
         pdo_mysql \
-        zip
+        zip \
+    && setcap -r /usr/local/bin/frankenphp
 
 ENV APP_ENV=production \
     APP_DEBUG=false \
