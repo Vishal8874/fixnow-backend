@@ -61,11 +61,11 @@ RUN mkdir -p \
         storage/logs \
     && chmod -R ug=rwX,o= /app/storage /app/bootstrap/cache
 
-USER www-data
+
 
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD curl -fsS "http://127.0.0.1:${PORT:-8080}/api/up" || exit 1
 
-CMD ["sh", "-c", "php artisan config:cache && exec frankenphp run --config /etc/caddy/Caddyfile"]
+CMD ["frankenphp", "run", "--config", "/etc/caddy/Caddyfile"]
