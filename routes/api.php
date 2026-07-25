@@ -18,6 +18,14 @@ use App\Http\Controllers\Provider\ProviderProfileController;
 use App\Http\Controllers\ServiceController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/up', function () {
+    return response()->json([
+        'status' => 'ok',
+        'app' => config('app.name'),
+        'time' => now(),
+    ]);
+});
+
 Route::prefix('auth')->group(function (): void {
     Route::post('/register/customer', [AuthController::class, 'registerCustomer'])->middleware('throttle:auth-register');
     Route::post('/register/provider', [AuthController::class, 'registerProvider'])->middleware('throttle:auth-register');

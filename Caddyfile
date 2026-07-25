@@ -1,0 +1,34 @@
+{
+    auto_https off
+    admin off
+}
+
+:{$PORT:8080} {
+    root * /app/public
+    encode zstd gzip
+
+    @hiddenFiles {
+        path /.* *.env
+    }
+
+    handle @hiddenFiles {
+        respond "Not Found" 404
+    }
+
+    php_server
+    file_server
+
+    log {
+        output stdout
+        format console
+    }
+
+    header {
+        -Server
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy no-referrer
+        Permissions-Policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()"
+    }
+}
