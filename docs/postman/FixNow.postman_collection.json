@@ -179,6 +179,23 @@
       ]
     },
     {
+      "name": "Gateway",
+      "item": [
+        {
+          "name": "Payment Callback",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_id\": {{payment_id}},\n  \"gateway_transaction_id\": \"TXN-POSTMAN-001\",\n  \"status\": \"success\",\n  \"notes\": \"Simulated gateway success\"\n}"
+            },
+            "url": "{{base_url}}/gateway/payment/callback"
+          }
+        }
+      ]
+    },
+    {
       "name": "Customer",
       "item": [
         {
@@ -298,7 +315,11 @@
             { "name": "Show Assignment", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{provider_token}}" }], "url": "{{base_url}}/provider/assignments/{{assignment_id}}" } },
             { "name": "Accept Assignment", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{provider_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Accepted from Postman\"\n}" }, "url": "{{base_url}}/provider/assignments/{{assignment_id}}/accept" } },
             { "name": "Reject Assignment", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{provider_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"rejection_reason\": \"Not available\"\n}" }, "url": "{{base_url}}/provider/assignments/{{assignment_id}}/reject" } },
-            { "name": "Complete Assignment", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{provider_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Work completed\"\n}" }, "url": "{{base_url}}/provider/assignments/{{assignment_id}}/complete" } }
+            { "name": "Mark On The Way", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{provider_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Heading to location\"\n}" }, "url": "{{base_url}}/provider/assignments/{{assignment_id}}/on-the-way" } },
+            { "name": "Mark Arrived", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{provider_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Arrived at customer location\"\n}" }, "url": "{{base_url}}/provider/assignments/{{assignment_id}}/arrived" } },
+            { "name": "Mark In Progress", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{provider_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Service started\"\n}" }, "url": "{{base_url}}/provider/assignments/{{assignment_id}}/in-progress" } },
+            { "name": "Complete Assignment", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{provider_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Work completed\"\n}" }, "url": "{{base_url}}/provider/assignments/{{assignment_id}}/complete" } },
+            { "name": "Confirm COD Payment", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{provider_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Cash collected\"\n}" }, "url": "{{base_url}}/provider/assignments/{{assignment_id}}/confirm-cod-payment" } }
           ]
         }
       ]
@@ -362,9 +383,7 @@
         {
           "name": "Payments",
           "item": [
-            { "name": "Mark Online Success", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"gateway_transaction_id\": \"TXN-POSTMAN-001\"\n}" }, "url": "{{base_url}}/admin/payments/{{payment_id}}/success" } },
-            { "name": "Mark Online Failed", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Gateway declined\"\n}" }, "url": "{{base_url}}/admin/payments/{{payment_id}}/failed" } },
-            { "name": "Mark COD Paid", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Collected on completion\"\n}" }, "url": "{{base_url}}/admin/payments/{{payment_id}}/cod-paid" } }
+            { "name": "Mark Online Failed", "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Gateway declined\"\n}" }, "url": "{{base_url}}/admin/payments/{{payment_id}}/failed" } }
           ]
         },
         {

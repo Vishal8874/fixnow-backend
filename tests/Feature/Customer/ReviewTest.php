@@ -32,7 +32,7 @@ class ReviewTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_customer_can_create_review_for_completed_paid_booking(): void
+    public function test_customer_can_create_review_for_closed_paid_booking(): void
     {
         [$customer, $booking, $providerProfile] = $this->createReviewableBooking();
         Sanctum::actingAs($customer);
@@ -72,20 +72,31 @@ class ReviewTest extends TestCase
             ->assertJsonPath('message', 'You can only review your own completed bookings.');
     }
 
-    public function test_completed_paid_and_assignment_rules_are_enforced(): void
+    public function test_closed_paid_and_assignment_rules_are_enforced(): void
     {
         [$customer, $booking] = $this->createReviewableBooking();
         Sanctum::actingAs($customer);
 
+        // Not CLOSED — should fail
         $booking->forceFill(['status' => BookingStatus::PROVIDER_ASSIGNED])->save();
 
         $this->postJson("/api/customer/bookings/{$booking->id}/review", [
             'rating' => 5,
         ])
             ->assertStatus(409)
-            ->assertJsonPath('message', 'Only completed bookings can be reviewed.');
+            ->assertJsonPath('message', 'Only closed bookings can be reviewed.');
 
+        // COMPLETED but not CLOSED — should fail
         $booking->forceFill(['status' => BookingStatus::COMPLETED])->save();
+
+        $this->postJson("/api/customer/bookings/{$booking->id}/review", [
+            'rating' => 5,
+        ])
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Only closed bookings can be reviewed.');
+
+        // CLOSED but payment not PAID — should fail
+        $booking->forceFill(['status' => BookingStatus::CLOSED])->save();
         $booking->payment->forceFill(['payment_status' => PaymentStatus::PENDING])->save();
 
         $this->postJson("/api/customer/bookings/{$booking->id}/review", [
@@ -94,6 +105,7 @@ class ReviewTest extends TestCase
             ->assertStatus(409)
             ->assertJsonPath('message', 'Only paid bookings can be reviewed.');
 
+        // CLOSED and PAID but no valid assignment — should fail
         $booking->payment->forceFill(['payment_status' => PaymentStatus::PAID])->save();
         ProviderAssignment::query()->where('booking_id', $booking->id)->delete();
 
@@ -191,7 +203,7 @@ class ReviewTest extends TestCase
             ->assertJsonPath('data.review.id', $review->id);
     }
 
-    public function test_review_validation_and_cod_paid_after_completion_regression_work(): void
+    public function test_review_validation_works(): void
     {
         [$customer, $booking] = $this->createReviewableBooking();
         Sanctum::actingAs($customer);
@@ -201,24 +213,6 @@ class ReviewTest extends TestCase
         ])
             ->assertStatus(422)
             ->assertJsonPath('message', 'Validation failed.');
-
-        $codBooking = Booking::factory()->create([
-            'user_id' => $customer->id,
-            'customer_address_id' => $booking->customer_address_id,
-            'status' => BookingStatus::PENDING_ASSIGNMENT,
-        ]);
-
-        $codPayment = Payment::factory()->create([
-            'booking_id' => $codBooking->id,
-            'payment_method' => PaymentMethod::CASH_ON_DELIVERY,
-            'payment_status' => PaymentStatus::PENDING,
-        ]);
-
-        Sanctum::actingAs(User::factory()->create(['role' => UserRole::ADMIN]));
-
-        $this->patchJson("/api/admin/payments/{$codPayment->id}/cod-paid")
-            ->assertStatus(409)
-            ->assertJsonPath('message', 'Cash on delivery payments can only be marked as paid after the booking is completed.');
     }
 
     protected function createReviewableBooking(?ProviderProfile $existingProviderProfile = null): array
@@ -237,7 +231,7 @@ class ReviewTest extends TestCase
         $booking = Booking::factory()->create([
             'user_id' => $customer->id,
             'customer_address_id' => $address->id,
-            'status' => BookingStatus::COMPLETED,
+            'status' => BookingStatus::CLOSED,
         ]);
 
         $booking->items()->create([

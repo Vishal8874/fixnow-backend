@@ -165,7 +165,106 @@ class ProviderAssignmentTest extends TestCase
             ->assertJsonPath('message', 'Resource not found.');
     }
 
-    public function test_provider_can_complete_accepted_assignment_and_booking_becomes_completed(): void
+    public function test_provider_full_lifecycle_online_payment_auto_closes(): void
+    {
+        $booking = $this->createAssignableBooking(PaymentMethod::ONLINE, PaymentStatus::PAID);
+        $providerProfile = $this->createEligibleProviderForBooking($booking);
+        $assignment = ProviderAssignment::factory()->create([
+            'booking_id' => $booking->id,
+            'provider_profile_id' => $providerProfile->id,
+            'status' => AssignmentStatus::ACCEPTED,
+            'accepted_at' => now(),
+        ]);
+
+        $booking->forceFill(['status' => BookingStatus::PROVIDER_ASSIGNED])->save();
+
+        Sanctum::actingAs($providerProfile->user);
+
+        // ON_THE_WAY
+        $this->patchJson("/api/provider/assignments/{$assignment->id}/on-the-way")
+            ->assertOk()
+            ->assertJsonPath('data.assignment.status', AssignmentStatus::ACCEPTED->value);
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $booking->id,
+            'status' => BookingStatus::ON_THE_WAY->value,
+        ]);
+
+        // ARRIVED
+        $this->patchJson("/api/provider/assignments/{$assignment->id}/arrived")
+            ->assertOk();
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $booking->id,
+            'status' => BookingStatus::ARRIVED->value,
+        ]);
+
+        // IN_PROGRESS
+        $this->patchJson("/api/provider/assignments/{$assignment->id}/in-progress")
+            ->assertOk();
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $booking->id,
+            'status' => BookingStatus::IN_PROGRESS->value,
+        ]);
+
+        // COMPLETED → auto-closes because online payment is already PAID
+        $this->patchJson("/api/provider/assignments/{$assignment->id}/complete")
+            ->assertOk()
+            ->assertJsonPath('data.assignment.status', AssignmentStatus::COMPLETED->value);
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $booking->id,
+            'status' => BookingStatus::CLOSED->value,
+        ]);
+    }
+
+    public function test_provider_full_lifecycle_cod_requires_confirmation_before_close(): void
+    {
+        $booking = $this->createAssignableBooking(PaymentMethod::CASH_ON_DELIVERY, PaymentStatus::PENDING);
+        $providerProfile = $this->createEligibleProviderForBooking($booking);
+        $assignment = ProviderAssignment::factory()->create([
+            'booking_id' => $booking->id,
+            'provider_profile_id' => $providerProfile->id,
+            'status' => AssignmentStatus::ACCEPTED,
+            'accepted_at' => now(),
+        ]);
+
+        $booking->forceFill(['status' => BookingStatus::PROVIDER_ASSIGNED])->save();
+
+        Sanctum::actingAs($providerProfile->user);
+
+        // Walk through lifecycle
+        $this->patchJson("/api/provider/assignments/{$assignment->id}/on-the-way")->assertOk();
+        $this->patchJson("/api/provider/assignments/{$assignment->id}/arrived")->assertOk();
+        $this->patchJson("/api/provider/assignments/{$assignment->id}/in-progress")->assertOk();
+        $this->patchJson("/api/provider/assignments/{$assignment->id}/complete")->assertOk();
+
+        // Booking is COMPLETED but NOT CLOSED (COD not confirmed yet)
+        $this->assertDatabaseHas('bookings', [
+            'id' => $booking->id,
+            'status' => BookingStatus::COMPLETED->value,
+        ]);
+
+        // Provider confirms COD payment
+        $this->patchJson("/api/provider/assignments/{$assignment->id}/confirm-cod-payment", [
+            'notes' => 'Cash collected from customer.',
+        ])
+            ->assertOk();
+
+        // Now booking is CLOSED
+        $this->assertDatabaseHas('bookings', [
+            'id' => $booking->id,
+            'status' => BookingStatus::CLOSED->value,
+        ]);
+
+        $this->assertDatabaseHas('payments', [
+            'booking_id' => $booking->id,
+            'payment_status' => PaymentStatus::PAID->value,
+        ]);
+    }
+
+    public function test_provider_cannot_skip_lifecycle_statuses(): void
     {
         $booking = $this->createAssignableBooking();
         $providerProfile = $this->createEligibleProviderForBooking($booking);
@@ -176,16 +275,19 @@ class ProviderAssignmentTest extends TestCase
             'accepted_at' => now(),
         ]);
 
+        $booking->forceFill(['status' => BookingStatus::PROVIDER_ASSIGNED])->save();
+
         Sanctum::actingAs($providerProfile->user);
 
-        $this->patchJson("/api/provider/assignments/{$assignment->id}/complete")
-            ->assertOk()
-            ->assertJsonPath('data.assignment.status', AssignmentStatus::COMPLETED->value);
+        // Cannot skip to IN_PROGRESS without ON_THE_WAY and ARRIVED
+        $this->patchJson("/api/provider/assignments/{$assignment->id}/in-progress")
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Booking must be in arrived status to mark in progress.');
 
-        $this->assertDatabaseHas('bookings', [
-            'id' => $booking->id,
-            'status' => BookingStatus::COMPLETED->value,
-        ]);
+        // Cannot skip to COMPLETE without going through the full lifecycle
+        $this->patchJson("/api/provider/assignments/{$assignment->id}/complete")
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Booking must be in in_progress status to mark completed.');
     }
 
     public function test_assignment_returns_no_provider_available_when_eligibility_rules_fail(): void
@@ -223,8 +325,10 @@ class ProviderAssignmentTest extends TestCase
             ->assertJsonPath('data.assignment.provider.id', $providerProfile->user->id);
     }
 
-    protected function createAssignableBooking(): Booking
-    {
+    protected function createAssignableBooking(
+        PaymentMethod $paymentMethod = PaymentMethod::CASH_ON_DELIVERY,
+        PaymentStatus $paymentStatus = PaymentStatus::PENDING,
+    ): Booking {
         $customer = User::factory()->create(['role' => UserRole::CUSTOMER]);
         $address = CustomerAddress::factory()->create([
             'user_id' => $customer->id,
@@ -254,9 +358,10 @@ class ProviderAssignmentTest extends TestCase
         ]);
 
         $booking->payment()->create([
-            'payment_method' => PaymentMethod::CASH_ON_DELIVERY,
-            'payment_status' => PaymentStatus::PENDING,
+            'payment_method' => $paymentMethod,
+            'payment_status' => $paymentStatus,
             'amount' => $booking->total,
+            'paid_at' => $paymentStatus === PaymentStatus::PAID ? now() : null,
         ]);
 
         return $booking;

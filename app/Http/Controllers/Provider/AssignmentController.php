@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Provider;
 
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ProviderAssignment\ConfirmCodPaymentRequest;
 use App\Http\Requests\ProviderAssignment\ProviderAssignmentActionRequest;
 use App\Http\Resources\ProviderAssignmentResource;
 use App\Models\ProviderAssignment;
@@ -43,10 +44,38 @@ class AssignmentController extends Controller
         return ApiResponse::success(ProviderAssignmentResource::make($assignment), 'Provider assignment rejected successfully.');
     }
 
+    public function onTheWay(ProviderAssignmentActionRequest $request, ProviderAssignment $assignment): JsonResponse
+    {
+        $assignment = $this->providerAssignmentService->markOnTheWay($request->user(), $assignment, $request->validated());
+
+        return ApiResponse::success(ProviderAssignmentResource::make($assignment), 'Provider is on the way.');
+    }
+
+    public function arrived(ProviderAssignmentActionRequest $request, ProviderAssignment $assignment): JsonResponse
+    {
+        $assignment = $this->providerAssignmentService->markArrived($request->user(), $assignment, $request->validated());
+
+        return ApiResponse::success(ProviderAssignmentResource::make($assignment), 'Provider has arrived.');
+    }
+
+    public function inProgress(ProviderAssignmentActionRequest $request, ProviderAssignment $assignment): JsonResponse
+    {
+        $assignment = $this->providerAssignmentService->markInProgress($request->user(), $assignment, $request->validated());
+
+        return ApiResponse::success(ProviderAssignmentResource::make($assignment), 'Service is in progress.');
+    }
+
     public function complete(ProviderAssignmentActionRequest $request, ProviderAssignment $assignment): JsonResponse
     {
-        $assignment = $this->providerAssignmentService->complete($request->user(), $assignment, $request->validated());
+        $assignment = $this->providerAssignmentService->markCompleted($request->user(), $assignment, $request->validated());
 
-        return ApiResponse::success(ProviderAssignmentResource::make($assignment), 'Provider assignment completed successfully.');
+        return ApiResponse::success(ProviderAssignmentResource::make($assignment), 'Service completed successfully.');
+    }
+
+    public function confirmCodPayment(ConfirmCodPaymentRequest $request, ProviderAssignment $assignment): JsonResponse
+    {
+        $assignment = $this->providerAssignmentService->confirmCodPayment($request->user(), $assignment, $request->validated());
+
+        return ApiResponse::success(ProviderAssignmentResource::make($assignment), 'Cash on delivery payment confirmed.');
     }
 }

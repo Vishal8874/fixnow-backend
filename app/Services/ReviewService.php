@@ -91,8 +91,8 @@ class ReviewService
 
         $booking->loadMissing(['payment', 'assignmentHistory', 'review']);
 
-        if ($booking->status !== BookingStatus::COMPLETED) {
-            throw new HttpException(409, 'Only completed bookings can be reviewed.');
+        if ($booking->status !== BookingStatus::CLOSED) {
+            throw new HttpException(409, 'Only closed bookings can be reviewed.');
         }
 
         if (! $booking->payment || $booking->payment->payment_status !== PaymentStatus::PAID) {

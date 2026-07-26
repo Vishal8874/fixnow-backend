@@ -24,7 +24,7 @@ class ProviderAssignment extends Model
         'accepted_at',
         'rejected_at',
         'completed_at',
-        'cancelled_at',
+        'expired_at',
         'rejection_reason',
         'notes',
     ];
@@ -42,7 +42,7 @@ class ProviderAssignment extends Model
             'accepted_at' => 'datetime',
             'rejected_at' => 'datetime',
             'completed_at' => 'datetime',
-            'cancelled_at' => 'datetime',
+            'expired_at' => 'datetime',
         ];
     }
 

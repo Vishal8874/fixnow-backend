@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Enums\AssignmentStatus;
 use App\Enums\BookingStatus;
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
 use App\Enums\ProviderVerificationStatus;
 use App\Enums\UserRole;
 use App\Enums\UserStatus;
@@ -114,12 +116,69 @@ class ProviderAssignmentService
         });
     }
 
-    public function complete(User $provider, ProviderAssignment $assignment, array $data): ProviderAssignment
+    public function markOnTheWay(User $provider, ProviderAssignment $assignment, array $data): ProviderAssignment
     {
         $ownedAssignment = $this->ownedAssignment($provider, $assignment);
 
-        if ($ownedAssignment->status !== AssignmentStatus::ACCEPTED) {
-            throw new HttpException(409, 'Only accepted provider assignments can be completed.');
+        if ($ownedAssignment->booking->status !== BookingStatus::PROVIDER_ASSIGNED) {
+            throw new HttpException(409, 'Booking must be in provider_assigned status to mark on the way.');
+        }
+
+        return DB::transaction(function () use ($ownedAssignment, $data): ProviderAssignment {
+            $this->updateBookingStatus($ownedAssignment->booking, BookingStatus::ON_THE_WAY, 'Provider is on the way.');
+
+            $ownedAssignment->forceFill([
+                'notes' => $data['notes'] ?? $ownedAssignment->notes,
+            ])->save();
+
+            return $ownedAssignment->fresh(['providerProfile.user', 'booking']);
+        });
+    }
+
+    public function markArrived(User $provider, ProviderAssignment $assignment, array $data): ProviderAssignment
+    {
+        $ownedAssignment = $this->ownedAssignment($provider, $assignment);
+
+        if ($ownedAssignment->booking->status !== BookingStatus::ON_THE_WAY) {
+            throw new HttpException(409, 'Booking must be in on_the_way status to mark arrived.');
+        }
+
+        return DB::transaction(function () use ($ownedAssignment, $data): ProviderAssignment {
+            $this->updateBookingStatus($ownedAssignment->booking, BookingStatus::ARRIVED, 'Provider has arrived.');
+
+            $ownedAssignment->forceFill([
+                'notes' => $data['notes'] ?? $ownedAssignment->notes,
+            ])->save();
+
+            return $ownedAssignment->fresh(['providerProfile.user', 'booking']);
+        });
+    }
+
+    public function markInProgress(User $provider, ProviderAssignment $assignment, array $data): ProviderAssignment
+    {
+        $ownedAssignment = $this->ownedAssignment($provider, $assignment);
+
+        if ($ownedAssignment->booking->status !== BookingStatus::ARRIVED) {
+            throw new HttpException(409, 'Booking must be in arrived status to mark in progress.');
+        }
+
+        return DB::transaction(function () use ($ownedAssignment, $data): ProviderAssignment {
+            $this->updateBookingStatus($ownedAssignment->booking, BookingStatus::IN_PROGRESS, 'Service is in progress.');
+
+            $ownedAssignment->forceFill([
+                'notes' => $data['notes'] ?? $ownedAssignment->notes,
+            ])->save();
+
+            return $ownedAssignment->fresh(['providerProfile.user', 'booking']);
+        });
+    }
+
+    public function markCompleted(User $provider, ProviderAssignment $assignment, array $data): ProviderAssignment
+    {
+        $ownedAssignment = $this->ownedAssignment($provider, $assignment);
+
+        if ($ownedAssignment->booking->status !== BookingStatus::IN_PROGRESS) {
+            throw new HttpException(409, 'Booking must be in in_progress status to mark completed.');
         }
 
         return DB::transaction(function () use ($ownedAssignment, $data): ProviderAssignment {
@@ -129,10 +188,55 @@ class ProviderAssignmentService
                 'notes' => $data['notes'] ?? $ownedAssignment->notes,
             ])->save();
 
-            $this->updateBookingStatus($ownedAssignment->booking, BookingStatus::COMPLETED, 'Provider completed assignment.');
+            $this->updateBookingStatus($ownedAssignment->booking, BookingStatus::COMPLETED, 'Service completed.');
+
+            $this->closeBookingIfEligible($ownedAssignment->booking->fresh(['payment']));
 
             return $ownedAssignment->fresh(['providerProfile.user', 'booking']);
         });
+    }
+
+    public function confirmCodPayment(User $provider, ProviderAssignment $assignment, array $data): ProviderAssignment
+    {
+        $ownedAssignment = $this->ownedAssignment($provider, $assignment);
+        $booking = $ownedAssignment->booking->load('payment');
+
+        if ($booking->status !== BookingStatus::COMPLETED) {
+            throw new HttpException(409, 'Cash can only be confirmed after service completion.');
+        }
+
+        if (! $booking->payment || $booking->payment->payment_method !== PaymentMethod::CASH_ON_DELIVERY) {
+            throw new HttpException(409, 'This booking does not use cash on delivery payment.');
+        }
+
+        if ($booking->payment->payment_status === PaymentStatus::PAID) {
+            throw new HttpException(409, 'Payment is already marked as paid.');
+        }
+
+        return DB::transaction(function () use ($ownedAssignment, $booking, $data): ProviderAssignment {
+            $booking->payment->forceFill([
+                'payment_status' => PaymentStatus::PAID,
+                'paid_at' => now(),
+                'notes' => $data['notes'] ?? $booking->payment->notes,
+            ])->save();
+
+            $this->closeBookingIfEligible($booking->fresh(['payment']));
+
+            return $ownedAssignment->fresh(['providerProfile.user', 'booking']);
+        });
+    }
+
+    public function closeBookingIfEligible(Booking $booking): void
+    {
+        if ($booking->status !== BookingStatus::COMPLETED) {
+            return;
+        }
+
+        if (! $booking->payment || $booking->payment->payment_status !== PaymentStatus::PAID) {
+            return;
+        }
+
+        $this->updateBookingStatus($booking, BookingStatus::CLOSED, 'Booking closed. Service completed and payment confirmed.');
     }
 
     protected function findEligibleProvider(Booking $booking): ?ProviderProfile

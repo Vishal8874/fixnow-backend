@@ -33,8 +33,12 @@ class PaymentService
             ]);
 
             if ($payment->payment_method === PaymentMethod::CASH_ON_DELIVERY) {
-                $this->updateBookingStatus($ownedBooking, BookingStatus::PENDING_ASSIGNMENT, 'COD payment created. Booking moved to pending assignment.', $user->id);
+                $this->updateBookingStatus($ownedBooking, BookingStatus::PENDING_ASSIGNMENT, 'COD payment selected. Booking moved to pending assignment.', $user->id);
                 $this->attemptAutomaticAssignment($ownedBooking->fresh());
+            }
+
+            if ($payment->payment_method === PaymentMethod::ONLINE) {
+                $this->updateBookingStatus($ownedBooking, BookingStatus::PENDING_PAYMENT, 'Online payment initiated. Awaiting gateway confirmation.', $user->id);
             }
 
             return $payment->fresh();
@@ -53,31 +57,29 @@ class PaymentService
         return $payment;
     }
 
-    public function markOnlineSuccess(Payment $payment, array $data = []): Payment
+    public function handleGatewayCallback(Payment $payment, array $data): Payment
     {
         if ($payment->payment_method !== PaymentMethod::ONLINE) {
-            throw new HttpException(409, 'Only online payments can be marked as successful.');
+            throw new HttpException(409, 'Only online payments can be processed by the gateway.');
         }
 
-        if ($payment->payment_status === PaymentStatus::PAID) {
-            throw new HttpException(409, 'Payment is already marked as paid.');
+        if ($payment->payment_status !== PaymentStatus::PENDING) {
+            throw new HttpException(409, 'This payment has already been processed.');
         }
 
-        return DB::transaction(function () use ($payment, $data): Payment {
-            $payment->forceFill([
-                'payment_status' => PaymentStatus::PAID,
-                'paid_at' => now(),
-                'gateway_transaction_id' => $data['gateway_transaction_id'] ?? $payment->gateway_transaction_id,
-                'notes' => $data['notes'] ?? $payment->notes,
-            ])->save();
+        $status = $data['status'] ?? 'failed';
 
-            $this->updateBookingStatus($payment->booking, BookingStatus::PENDING_ASSIGNMENT, 'Online payment marked successful.');
-            $this->attemptAutomaticAssignment($payment->booking->fresh());
+        if ($status === 'success') {
+            return $this->processGatewaySuccess($payment, $data);
+        }
 
-            return $payment->fresh();
-        });
+        return $this->processGatewayFailure($payment, $data);
     }
 
+    /**
+     * Admin operational override: manually mark an online payment as failed.
+     * This is for exceptional cases only, not the normal booking lifecycle.
+     */
     public function markOnlineFailed(Payment $payment, array $data = []): Payment
     {
         if ($payment->payment_method !== PaymentMethod::ONLINE) {
@@ -100,24 +102,30 @@ class PaymentService
         });
     }
 
-    public function markCodPaid(Payment $payment, array $data = []): Payment
+    protected function processGatewaySuccess(Payment $payment, array $data): Payment
     {
-        if ($payment->payment_method !== PaymentMethod::CASH_ON_DELIVERY) {
-            throw new HttpException(409, 'Only cash on delivery payments can be marked as paid.');
-        }
-
-        if ($payment->payment_status === PaymentStatus::PAID) {
-            throw new HttpException(409, 'Payment is already marked as paid.');
-        }
-
-        if ($payment->booking->status !== BookingStatus::COMPLETED) {
-            throw new HttpException(409, 'Cash on delivery payments can only be marked as paid after the booking is completed.');
-        }
-
         return DB::transaction(function () use ($payment, $data): Payment {
             $payment->forceFill([
                 'payment_status' => PaymentStatus::PAID,
                 'paid_at' => now(),
+                'gateway_transaction_id' => $data['gateway_transaction_id'] ?? $payment->gateway_transaction_id,
+                'notes' => $data['notes'] ?? $payment->notes,
+            ])->save();
+
+            $this->updateBookingStatus($payment->booking, BookingStatus::PENDING_ASSIGNMENT, 'Online payment confirmed. Booking moved to pending assignment.');
+            $this->attemptAutomaticAssignment($payment->booking->fresh());
+
+            return $payment->fresh();
+        });
+    }
+
+    protected function processGatewayFailure(Payment $payment, array $data): Payment
+    {
+        return DB::transaction(function () use ($payment, $data): Payment {
+            $payment->forceFill([
+                'payment_status' => PaymentStatus::FAILED,
+                'paid_at' => null,
+                'gateway_transaction_id' => $data['gateway_transaction_id'] ?? $payment->gateway_transaction_id,
                 'notes' => $data['notes'] ?? $payment->notes,
             ])->save();
 

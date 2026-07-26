@@ -20,7 +20,7 @@ class ProviderAssignmentResource extends JsonResource
                 'accepted_at' => $this->accepted_at?->toIso8601String(),
                 'rejected_at' => $this->rejected_at?->toIso8601String(),
                 'completed_at' => $this->completed_at?->toIso8601String(),
-                'cancelled_at' => $this->cancelled_at?->toIso8601String(),
+                'expired_at' => $this->expired_at?->toIso8601String(),
                 'rejection_reason' => $this->rejection_reason,
                 'notes' => $this->notes,
                 'provider' => [

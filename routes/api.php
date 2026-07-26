@@ -12,6 +12,7 @@ use App\Http\Controllers\Customer\BookingController;
 use App\Http\Controllers\Customer\CustomerAddressController;
 use App\Http\Controllers\Customer\PaymentController;
 use App\Http\Controllers\Customer\ReviewController as CustomerReviewController;
+use App\Http\Controllers\Gateway\PaymentCallbackController;
 use App\Http\Controllers\Provider\AssignmentController;
 use App\Http\Controllers\Provider\ProviderAvailabilityController;
 use App\Http\Controllers\Provider\ProviderProfileController;
@@ -43,6 +44,9 @@ Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/categories/{category}/services', [CategoryController::class, 'services']);
 Route::get('/services', [ServiceController::class, 'index']);
 
+// Simulated payment gateway callback (no auth — verified by gateway signature in production)
+Route::post('/gateway/payment/callback', [PaymentCallbackController::class, 'handleCallback']);
+
 Route::prefix('admin')
     ->middleware(['auth:sanctum', 'admin'])
     ->group(function (): void {
@@ -53,9 +57,7 @@ Route::prefix('admin')
         Route::get('/providers/{provider}', [ProviderApprovalController::class, 'show']);
         Route::patch('/providers/{provider}/approve', [ProviderApprovalController::class, 'approve']);
         Route::patch('/providers/{provider}/reject', [ProviderApprovalController::class, 'reject']);
-        Route::patch('/payments/{payment}/success', [PaymentManagementController::class, 'success']);
         Route::patch('/payments/{payment}/failed', [PaymentManagementController::class, 'failed']);
-        Route::patch('/payments/{payment}/cod-paid', [PaymentManagementController::class, 'codPaid']);
         Route::post('/bookings/{booking}/assign', [ProviderAssignmentController::class, 'store']);
         Route::get('/reviews', [AdminReviewController::class, 'index']);
         Route::get('/reviews/{review}', [AdminReviewController::class, 'show']);
@@ -95,5 +97,9 @@ Route::prefix('provider')
         Route::get('/assignments/{assignment}', [AssignmentController::class, 'show']);
         Route::patch('/assignments/{assignment}/accept', [AssignmentController::class, 'accept']);
         Route::patch('/assignments/{assignment}/reject', [AssignmentController::class, 'reject']);
+        Route::patch('/assignments/{assignment}/on-the-way', [AssignmentController::class, 'onTheWay']);
+        Route::patch('/assignments/{assignment}/arrived', [AssignmentController::class, 'arrived']);
+        Route::patch('/assignments/{assignment}/in-progress', [AssignmentController::class, 'inProgress']);
         Route::patch('/assignments/{assignment}/complete', [AssignmentController::class, 'complete']);
+        Route::patch('/assignments/{assignment}/confirm-cod-payment', [AssignmentController::class, 'confirmCodPayment']);
     });

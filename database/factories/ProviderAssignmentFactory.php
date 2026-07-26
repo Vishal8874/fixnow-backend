@@ -29,6 +29,7 @@ class ProviderAssignmentFactory extends Factory
             'rejected_at' => null,
             'completed_at' => null,
             'cancelled_at' => null,
+            'expired_at' => null,
             'rejection_reason' => null,
             'notes' => null,
         ];

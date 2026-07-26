@@ -50,6 +50,12 @@ class BookingService
             throw new HttpException(409, 'Booking is already cancelled.');
         }
 
+        $cancellableStatuses = [BookingStatus::CREATED, BookingStatus::PENDING_PAYMENT];
+
+        if (! in_array($ownedBooking->status, $cancellableStatuses, true)) {
+            throw new HttpException(409, 'Booking cannot be cancelled after payment has been made.');
+        }
+
         return DB::transaction(function () use ($ownedBooking, $user, $data): Booking {
             $ownedBooking->forceFill([
                 'status' => BookingStatus::CANCELLED,

@@ -3,6 +3,8 @@
 namespace Tests\Feature\Customer;
 
 use App\Enums\BookingStatus;
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
 use App\Enums\Status;
 use App\Enums\UserRole;
 use App\Models\Booking;
@@ -81,7 +83,7 @@ class BookingTest extends TestCase
             ->assertJsonPath('data.booking.booking_number', 'BK202600001');
     }
 
-    public function test_customer_can_cancel_booking(): void
+    public function test_customer_can_cancel_booking_before_payment(): void
     {
         $user = User::factory()->create(['role' => UserRole::CUSTOMER]);
         Sanctum::actingAs($user);
@@ -103,6 +105,46 @@ class BookingTest extends TestCase
             'status' => BookingStatus::CANCELLED->value,
             'remarks' => 'Change of plans',
         ]);
+    }
+
+    public function test_customer_cannot_cancel_booking_after_payment(): void
+    {
+        $user = User::factory()->create(['role' => UserRole::CUSTOMER]);
+        Sanctum::actingAs($user);
+        $address = CustomerAddress::factory()->create(['user_id' => $user->id, 'is_default' => true]);
+        $booking = Booking::factory()->create([
+            'user_id' => $user->id,
+            'customer_address_id' => $address->id,
+            'status' => BookingStatus::PENDING_ASSIGNMENT,
+        ]);
+
+        $booking->payment()->create([
+            'payment_method' => PaymentMethod::CASH_ON_DELIVERY,
+            'payment_status' => PaymentStatus::PENDING,
+            'amount' => $booking->total,
+        ]);
+
+        $this->patchJson("/api/customer/bookings/{$booking->id}/cancel", [
+            'remarks' => 'Changed my mind',
+        ])
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Booking cannot be cancelled after payment has been made.');
+    }
+
+    public function test_customer_can_cancel_booking_in_pending_payment_status(): void
+    {
+        $user = User::factory()->create(['role' => UserRole::CUSTOMER]);
+        Sanctum::actingAs($user);
+        $address = CustomerAddress::factory()->create(['user_id' => $user->id, 'is_default' => true]);
+        $booking = Booking::factory()->create([
+            'user_id' => $user->id,
+            'customer_address_id' => $address->id,
+            'status' => BookingStatus::PENDING_PAYMENT,
+        ]);
+
+        $this->patchJson("/api/customer/bookings/{$booking->id}/cancel")
+            ->assertOk()
+            ->assertJsonPath('data.status', BookingStatus::CANCELLED->value);
     }
 
     public function test_booking_number_generation_increments(): void

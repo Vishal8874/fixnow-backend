@@ -56,7 +56,7 @@ class PaymentTest extends TestCase
         ]);
     }
 
-    public function test_customer_can_create_online_payment_and_success_moves_booking_to_pending_assignment(): void
+    public function test_online_payment_moves_booking_to_pending_payment_then_gateway_callback_triggers_assignment(): void
     {
         $customer = User::factory()->create(['role' => UserRole::CUSTOMER]);
         Sanctum::actingAs($customer);
@@ -77,13 +77,25 @@ class PaymentTest extends TestCase
 
         $paymentId = $createResponse->json('data.payment.id');
 
-        Sanctum::actingAs(User::factory()->create(['role' => UserRole::ADMIN]));
+        // Booking should be in PENDING_PAYMENT, not PENDING_ASSIGNMENT
+        $this->assertDatabaseHas('bookings', [
+            'id' => $booking->id,
+            'status' => BookingStatus::PENDING_PAYMENT->value,
+        ]);
 
-        $this->patchJson("/api/admin/payments/{$paymentId}/success", [
+        // Simulate gateway callback
+        $this->postJson('/api/gateway/payment/callback', [
+            'payment_id' => $paymentId,
             'gateway_transaction_id' => 'TXN-123',
+            'status' => 'success',
         ])
             ->assertOk()
             ->assertJsonPath('data.payment.status', PaymentStatus::PAID->value);
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $booking->id,
+            'status' => BookingStatus::PENDING_ASSIGNMENT->value,
+        ]);
 
         $this->assertDatabaseHas('provider_assignments', [
             'booking_id' => $booking->id,
@@ -91,7 +103,35 @@ class PaymentTest extends TestCase
         ]);
     }
 
-    public function test_admin_can_mark_online_payment_failed(): void
+    public function test_gateway_callback_with_failure_marks_payment_failed(): void
+    {
+        $customer = User::factory()->create(['role' => UserRole::CUSTOMER]);
+        Sanctum::actingAs($customer);
+        $address = CustomerAddress::factory()->create(['user_id' => $customer->id]);
+        $booking = Booking::factory()->create([
+            'user_id' => $customer->id,
+            'customer_address_id' => $address->id,
+            'status' => BookingStatus::CREATED,
+            'total' => 500.00,
+        ]);
+
+        $this->postJson("/api/customer/bookings/{$booking->id}/payment", [
+            'payment_method' => PaymentMethod::ONLINE->value,
+            'gateway' => 'simulated',
+        ])->assertCreated();
+
+        $paymentId = Payment::query()->where('booking_id', $booking->id)->value('id');
+
+        $this->postJson('/api/gateway/payment/callback', [
+            'payment_id' => $paymentId,
+            'status' => 'failed',
+            'notes' => 'Insufficient funds',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.payment.status', PaymentStatus::FAILED->value);
+    }
+
+    public function test_admin_can_mark_online_payment_failed_as_override(): void
     {
         $booking = Booking::factory()->create();
         $payment = Payment::factory()->create([
@@ -107,24 +147,6 @@ class PaymentTest extends TestCase
         ])
             ->assertOk()
             ->assertJsonPath('data.payment.status', PaymentStatus::FAILED->value);
-    }
-
-    public function test_admin_can_mark_cod_payment_paid(): void
-    {
-        $booking = Booking::factory()->create([
-            'status' => BookingStatus::COMPLETED,
-        ]);
-        $payment = Payment::factory()->create([
-            'booking_id' => $booking->id,
-            'payment_method' => PaymentMethod::CASH_ON_DELIVERY,
-            'payment_status' => PaymentStatus::PENDING,
-        ]);
-
-        Sanctum::actingAs(User::factory()->create(['role' => UserRole::ADMIN]));
-
-        $this->patchJson("/api/admin/payments/{$payment->id}/cod-paid")
-            ->assertOk()
-            ->assertJsonPath('data.payment.status', PaymentStatus::PAID->value);
     }
 
     public function test_payment_cannot_be_created_twice_and_customer_can_only_view_own_payment(): void

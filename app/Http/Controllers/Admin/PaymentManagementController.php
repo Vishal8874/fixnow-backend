@@ -14,24 +14,14 @@ class PaymentManagementController extends Controller
 {
     public function __construct(private readonly PaymentService $paymentService) {}
 
-    public function success(UpdatePaymentStatusRequest $request, Payment $payment): JsonResponse
-    {
-        $payment = $this->paymentService->markOnlineSuccess($payment, $request->validated());
-
-        return ApiResponse::success(PaymentResource::make($payment), 'Payment marked successful.');
-    }
-
+    /**
+     * Admin operational override: manually mark an online payment as failed.
+     * This is for exceptional cases only, not the normal booking lifecycle.
+     */
     public function failed(UpdatePaymentStatusRequest $request, Payment $payment): JsonResponse
     {
         $payment = $this->paymentService->markOnlineFailed($payment, $request->validated());
 
         return ApiResponse::success(PaymentResource::make($payment), 'Payment marked failed.');
-    }
-
-    public function codPaid(UpdatePaymentStatusRequest $request, Payment $payment): JsonResponse
-    {
-        $payment = $this->paymentService->markCodPaid($payment, $request->validated());
-
-        return ApiResponse::success(PaymentResource::make($payment), 'COD payment marked paid.');
     }
 }

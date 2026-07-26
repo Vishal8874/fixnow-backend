@@ -202,6 +202,7 @@ Standard validation response:
 - Authentication: customer Sanctum token
 - Request Body: optional `remarks`
 - Success Response: `200`
+- Business Rules: cancellation allowed only for `created` and `pending_payment` statuses (before payment).
 
 ## Payments
 
@@ -209,29 +210,23 @@ Standard validation response:
 - Authentication: customer Sanctum token
 - Request Body: `payment_method`, optional `gateway`, optional `notes`
 - Success Response: `201`
-- Business Rules: one payment per booking; eligible payment states move booking to `pending_assignment` and trigger automatic assignment
+- Business Rules: one payment per booking; COD payment creation moves booking to `pending_assignment` and triggers auto-assignment; online payment creation moves booking to `pending_payment` awaiting gateway callback.
 
 ### GET `/customer/bookings/{booking}/payment`
 - Authentication: customer Sanctum token
 - Success Response: `200`
 
-### PATCH `/admin/payments/{payment}/success`
-- Authentication: admin Sanctum token
-- Request Body: optional `gateway_transaction_id`, optional `notes`
+### POST `/gateway/payment/callback`
+- Authentication: none (simulated gateway callback)
+- Request Body: `payment_id`, optional `gateway_transaction_id`, `status` (`success` or `failed`), optional `notes`
 - Success Response: `200`
-- Business Rules: online payments only
+- Business Rules: online payment gateway simulation callback. On `success`, updates payment status to `paid`, moves booking to `pending_assignment`, and triggers auto-assignment.
 
 ### PATCH `/admin/payments/{payment}/failed`
 - Authentication: admin Sanctum token
 - Request Body: optional `gateway_transaction_id`, optional `notes`
 - Success Response: `200`
-- Business Rules: online payments only
-
-### PATCH `/admin/payments/{payment}/cod-paid`
-- Authentication: admin Sanctum token
-- Request Body: optional `notes`
-- Success Response: `200`
-- Business Rules: COD only and booking must already be completed
+- Business Rules: admin operational override for marking stuck online payments as failed.
 
 ## Provider Profile
 
@@ -311,19 +306,43 @@ Standard validation response:
 - Authentication: provider Sanctum token
 - Request Body: optional `notes`
 - Success Response: `200`
-- Business Rules: assignment must be `assigned`
+- Business Rules: assignment status must be `assigned`. Moves booking to `provider_assigned`.
 
 ### PATCH `/provider/assignments/{assignment}/reject`
 - Authentication: provider Sanctum token
 - Request Body: optional `rejection_reason`, optional `notes`
 - Success Response: `200`
-- Business Rules: assignment must be `assigned`; system automatically retries assignment
+- Business Rules: assignment status must be `assigned`. Moves booking to `pending_assignment` and system automatically retries assignment with next eligible provider.
+
+### PATCH `/provider/assignments/{assignment}/on-the-way`
+- Authentication: provider Sanctum token
+- Request Body: optional `notes`
+- Success Response: `200`
+- Business Rules: booking status must be `provider_assigned`. Moves booking to `on_the_way`.
+
+### PATCH `/provider/assignments/{assignment}/arrived`
+- Authentication: provider Sanctum token
+- Request Body: optional `notes`
+- Success Response: `200`
+- Business Rules: booking status must be `on_the_way`. Moves booking to `arrived`.
+
+### PATCH `/provider/assignments/{assignment}/in-progress`
+- Authentication: provider Sanctum token
+- Request Body: optional `notes`
+- Success Response: `200`
+- Business Rules: booking status must be `arrived`. Moves booking to `in_progress`.
 
 ### PATCH `/provider/assignments/{assignment}/complete`
 - Authentication: provider Sanctum token
 - Request Body: optional `notes`
 - Success Response: `200`
-- Business Rules: assignment must be `accepted`
+- Business Rules: booking status must be `in_progress`. Sets assignment status to `completed` and booking status to `completed`. If online pre-paid, auto-closes booking to `closed`.
+
+### PATCH `/provider/assignments/{assignment}/confirm-cod-payment`
+- Authentication: provider Sanctum token
+- Request Body: optional `notes`
+- Success Response: `200`
+- Business Rules: booking status must be `completed` and payment method `cash_on_delivery`. Marks payment `paid` and auto-closes booking to `closed`.
 
 ## Reviews
 
@@ -331,11 +350,12 @@ Standard validation response:
 - Authentication: customer Sanctum token
 - Request Body: `rating`, optional `comment`
 - Success Response: `201`
-- Business Rules: booking must belong to customer, be completed, be paid, have accepted or completed assignment history, and not already be reviewed
+- Business Rules: booking must belong to customer, be in status `closed`, payment status `paid`, have accepted/completed assignment history, and not already be reviewed.
 
 ### GET `/customer/reviews`
 - Authentication: customer Sanctum token
 - Success Response: paginated customer reviews
+- Business Rules: customer views their own reviews
 
 ### GET `/customer/reviews/{review}`
 - Authentication: customer Sanctum token
