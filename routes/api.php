@@ -16,6 +16,8 @@ use App\Http\Controllers\Gateway\PaymentCallbackController;
 use App\Http\Controllers\Provider\AssignmentController;
 use App\Http\Controllers\Provider\ProviderAvailabilityController;
 use App\Http\Controllers\Provider\ProviderProfileController;
+use App\Http\Controllers\Provider\ProviderServiceAreaController;
+use App\Http\Controllers\Provider\ProviderServiceController;
 use App\Http\Controllers\ServiceController;
 use Illuminate\Support\Facades\Route;
 
@@ -90,6 +92,13 @@ Route::prefix('provider')
         Route::get('/profile', [ProviderProfileController::class, 'show']);
         Route::post('/profile', [ProviderProfileController::class, 'store']);
         Route::patch('/profile', [ProviderProfileController::class, 'update']);
+        Route::get('/services', [ProviderServiceController::class, 'index']);
+        Route::post('/services', [ProviderServiceController::class, 'store']);
+        Route::delete('/services/{providerService}', [ProviderServiceController::class, 'destroy']);
+        Route::get('/service-areas', [ProviderServiceAreaController::class, 'index']);
+        Route::post('/service-areas', [ProviderServiceAreaController::class, 'store']);
+        Route::patch('/service-areas/{serviceArea}', [ProviderServiceAreaController::class, 'update']);
+        Route::delete('/service-areas/{serviceArea}', [ProviderServiceAreaController::class, 'destroy']);
         Route::get('/availability', [ProviderAvailabilityController::class, 'show']);
         Route::post('/availability', [ProviderAvailabilityController::class, 'store']);
         Route::patch('/availability', [ProviderAvailabilityController::class, 'update']);

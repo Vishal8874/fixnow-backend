@@ -246,6 +246,46 @@ Standard validation response:
 - Request Body: partial profile fields
 - Success Response: `200`
 
+## Provider Services
+
+### GET `/provider/services`
+- Authentication: provider Sanctum token
+- Success Response: paginated selected provider services
+
+### POST `/provider/services`
+- Authentication: provider Sanctum token
+- Request Body: `service_id`
+- Success Response: `201`
+- Business Rules: only active services from active categories may be selected; duplicate provider services return `409`
+
+### DELETE `/provider/services/{providerService}`
+- Authentication: provider Sanctum token
+- Success Response: `200`
+- Business Rules: ownership enforced
+
+## Provider Service Areas
+
+### GET `/provider/service-areas`
+- Authentication: provider Sanctum token
+- Success Response: paginated provider service areas
+
+### POST `/provider/service-areas`
+- Authentication: provider Sanctum token
+- Request Body: `postal_code`, `city`, `state`
+- Success Response: `201`
+- Business Rules: duplicate postal codes for the same provider return `409`
+
+### PATCH `/provider/service-areas/{serviceArea}`
+- Authentication: provider Sanctum token
+- Request Body: partial service area fields
+- Success Response: `200`
+- Business Rules: ownership enforced; duplicate postal codes for the same provider return `409`
+
+### DELETE `/provider/service-areas/{serviceArea}`
+- Authentication: provider Sanctum token
+- Success Response: `200`
+- Business Rules: ownership enforced
+
 ## Provider Availability
 
 ### GET `/provider/availability`

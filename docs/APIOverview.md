@@ -42,6 +42,13 @@ Base path: `/api`
 - `GET /provider/profile`
 - `POST /provider/profile`
 - `PATCH /provider/profile`
+- `GET /provider/services`
+- `POST /provider/services`
+- `DELETE /provider/services/{providerService}`
+- `GET /provider/service-areas`
+- `POST /provider/service-areas`
+- `PATCH /provider/service-areas/{serviceArea}`
+- `DELETE /provider/service-areas/{serviceArea}`
 - `GET /provider/availability`
 - `POST /provider/availability`
 - `PATCH /provider/availability`
@@ -49,6 +56,9 @@ Base path: `/api`
 - `GET /provider/assignments/{assignment}`
 - `PATCH /provider/assignments/{assignment}/accept`
 - `PATCH /provider/assignments/{assignment}/reject`
+- `PATCH /provider/assignments/{assignment}/on-the-way`
+- `PATCH /provider/assignments/{assignment}/arrived`
+- `PATCH /provider/assignments/{assignment}/in-progress`
 - `PATCH /provider/assignments/{assignment}/complete`
 
 ## Admin
