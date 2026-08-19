@@ -55,9 +55,9 @@ class ProviderProfileService
             $image = $this->storeProfileImage($data['profile_image']);
 
             if ($image) {
-                // Delete old image only after successful upload
+                // Delete old image after successful upload
                 if ($profileImagePublicId) {
-                    Cloudinary::destroy($profileImagePublicId);
+                    Cloudinary::uploadApi()->destroy($profileImagePublicId);
                 }
 
                 $profileImage = $image['url'];
@@ -65,14 +65,14 @@ class ProviderProfileService
             }
         }
 
-        $profile->fill([
-            'profile_image' => $profileImage,
-            'profile_image_public_id' => $profileImagePublicId,
-            'about' => $data['about'] ?? $profile->about,
-            'experience_years' => $data['experience_years'] ?? $profile->experience_years,
-        ]);
-
-        $profile->save();
+        $profile
+            ->fill([
+                'profile_image' => $profileImage,
+                'profile_image_public_id' => $profileImagePublicId,
+                'about' => $data['about'] ?? $profile->about,
+                'experience_years' => $data['experience_years'] ?? $profile->experience_years,
+            ])
+            ->save();
 
         return $profile->fresh(['user']);
     }
@@ -155,11 +155,13 @@ class ProviderProfileService
             return null;
         }
 
-        $uploadedFile = $profileImage->storeOnCloudinary('fixnow/provider-profiles');
+        $result = Cloudinary::uploadApi()->upload($profileImage->getRealPath(), [
+            'folder' => 'fixnow/provider-profiles',
+        ]);
 
         return [
-            'url' => $uploadedFile->getSecurePath(),
-            'public_id' => $uploadedFile->getPublicId(),
+            'url' => $result['secure_url'],
+            'public_id' => $result['public_id'],
         ];
     }
 }
