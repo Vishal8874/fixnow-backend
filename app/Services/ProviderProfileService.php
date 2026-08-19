@@ -10,6 +10,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class ProviderProfileService
 {
@@ -25,14 +26,20 @@ class ProviderProfileService
         }
 
         return DB::transaction(function () use ($provider, $data): ProviderProfile {
-            return $provider->providerProfile()->create([
-                'profile_image' => $this->storeProfileImage($data['profile_image'] ?? null),
-                'about' => $data['about'],
-                'experience_years' => $data['experience_years'],
-                'verification_status' => ProviderVerificationStatus::PENDING,
-                'average_rating' => 0,
-                'total_reviews' => 0,
-            ])->load('user');
+            $image = $this->storeProfileImage($data['profile_image'] ?? null);
+
+            return $provider
+                ->providerProfile()
+                ->create([
+                    'profile_image' => $image['url'] ?? null,
+                    'profile_image_public_id' => $image['public_id'] ?? null,
+                    'about' => $data['about'],
+                    'experience_years' => $data['experience_years'],
+                    'verification_status' => ProviderVerificationStatus::PENDING,
+                    'average_rating' => 0,
+                    'total_reviews' => 0,
+                ])
+                ->load('user');
         });
     }
 
@@ -41,20 +48,32 @@ class ProviderProfileService
         $profile = $this->getProviderProfile($provider);
 
         $profileImage = $profile->profile_image;
+        $profileImagePublicId = $profile->profile_image_public_id;
 
-        if (array_key_exists('profile_image', $data)) {
-            $profileImage = $this->storeProfileImage($data['profile_image']);
+        if (array_key_exists('profile_image', $data) && $data['profile_image'] instanceof UploadedFile) {
+            // Delete the old image from Cloudinary
+            if ($profileImagePublicId) {
+                Cloudinary::destroy($profileImagePublicId);
+            }
+
+            // Upload the new image
+            $image = $this->storeProfileImage($data['profile_image']);
+
+            $profileImage = $image['url'];
+            $profileImagePublicId = $image['public_id'];
         }
 
-        $profile->fill([
-            'profile_image' => $profileImage,
-            'about' => $data['about'] ?? $profile->about,
-            'experience_years' => $data['experience_years'] ?? $profile->experience_years,
-        ])->save();
+        $profile
+            ->fill([
+                'profile_image' => $profileImage,
+                'profile_image_public_id' => $profileImagePublicId,
+                'about' => $data['about'] ?? $profile->about,
+                'experience_years' => $data['experience_years'] ?? $profile->experience_years,
+            ])
+            ->save();
 
         return $profile->fresh(['user']);
     }
-
     public function listPending(array $filters): LengthAwarePaginator
     {
         return ProviderProfile::query()
@@ -87,9 +106,11 @@ class ProviderProfileService
             throw new HttpException(409, 'Provider is already approved.');
         }
 
-        $profile->forceFill([
-            'verification_status' => ProviderVerificationStatus::APPROVED,
-        ])->save();
+        $profile
+            ->forceFill([
+                'verification_status' => ProviderVerificationStatus::APPROVED,
+            ])
+            ->save();
 
         return $profile->fresh(['user']);
     }
@@ -102,9 +123,11 @@ class ProviderProfileService
             throw new HttpException(409, 'Provider is already rejected.');
         }
 
-        $profile->forceFill([
-            'verification_status' => ProviderVerificationStatus::REJECTED,
-        ])->save();
+        $profile
+            ->forceFill([
+                'verification_status' => ProviderVerificationStatus::REJECTED,
+            ])
+            ->save();
 
         return $profile->fresh(['user']);
     }
@@ -117,19 +140,26 @@ class ProviderProfileService
 
         $profile = $provider->providerProfile()->with('user')->first();
 
-        if (! $profile) {
+        if (!$profile) {
             throw new HttpException(404, 'Resource not found.');
         }
 
         return $profile;
     }
 
-    protected function storeProfileImage(mixed $profileImage): ?string
+    protected function storeProfileImage(mixed $profileImage): ?array
     {
-        if ($profileImage instanceof UploadedFile) {
-            return $profileImage->store('provider-profiles', 'public');
+        if (!$profileImage instanceof UploadedFile) {
+            return null;
         }
 
-        return is_string($profileImage) ? $profileImage : null;
+        $uploadedFile = Cloudinary::upload($profileImage->getRealPath(), [
+            'folder' => 'fixnow/provider-profiles',
+        ]);
+
+        return [
+            'url' => $uploadedFile->getSecurePath(),
+            'public_id' => $uploadedFile->getPublicId(),
+        ];
     }
 }

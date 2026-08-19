@@ -22,6 +22,7 @@ class ProviderProfile extends Model
     protected $fillable = [
         'user_id',
         'profile_image',
+        'profile_image_public_id',
         'about',
         'experience_years',
         'verification_status',

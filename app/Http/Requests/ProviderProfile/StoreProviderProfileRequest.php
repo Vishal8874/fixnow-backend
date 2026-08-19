@@ -20,7 +20,7 @@ class StoreProviderProfileRequest extends FormRequest
         return [
             'about' => ['required', 'string'],
             'experience_years' => ['required', 'integer', 'min:0'],
-            'profile_image' => ['nullable', 'image'],
+            'profile_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ];
     }
 }
