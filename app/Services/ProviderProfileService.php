@@ -51,26 +51,28 @@ class ProviderProfileService
         $profileImagePublicId = $profile->profile_image_public_id;
 
         if (array_key_exists('profile_image', $data) && $data['profile_image'] instanceof UploadedFile) {
-            // Delete the old image from Cloudinary
-            if ($profileImagePublicId) {
-                Cloudinary::destroy($profileImagePublicId);
-            }
-
-            // Upload the new image
+            // Upload new image first
             $image = $this->storeProfileImage($data['profile_image']);
 
-            $profileImage = $image['url'];
-            $profileImagePublicId = $image['public_id'];
+            if ($image) {
+                // Delete old image only after successful upload
+                if ($profileImagePublicId) {
+                    Cloudinary::destroy($profileImagePublicId);
+                }
+
+                $profileImage = $image['url'];
+                $profileImagePublicId = $image['public_id'];
+            }
         }
 
-        $profile
-            ->fill([
-                'profile_image' => $profileImage,
-                'profile_image_public_id' => $profileImagePublicId,
-                'about' => $data['about'] ?? $profile->about,
-                'experience_years' => $data['experience_years'] ?? $profile->experience_years,
-            ])
-            ->save();
+        $profile->fill([
+            'profile_image' => $profileImage,
+            'profile_image_public_id' => $profileImagePublicId,
+            'about' => $data['about'] ?? $profile->about,
+            'experience_years' => $data['experience_years'] ?? $profile->experience_years,
+        ]);
+
+        $profile->save();
 
         return $profile->fresh(['user']);
     }
@@ -153,9 +155,7 @@ class ProviderProfileService
             return null;
         }
 
-        $uploadedFile = Cloudinary::upload($profileImage->getRealPath(), [
-            'folder' => 'fixnow/provider-profiles',
-        ]);
+        $uploadedFile = $profileImage->storeOnCloudinary('fixnow/provider-profiles');
 
         return [
             'url' => $uploadedFile->getSecurePath(),

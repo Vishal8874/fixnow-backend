@@ -20,7 +20,7 @@ class UpdateProviderProfileRequest extends FormRequest
         return [
             'about' => ['sometimes', 'required', 'string'],
             'experience_years' => ['sometimes', 'required', 'integer', 'min:0'],
-            'profile_image' => ['nullable', 'image'],
+            'profile_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ];
     }
 }
