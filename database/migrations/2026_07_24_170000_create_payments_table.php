@@ -30,7 +30,7 @@ return new class extends Migration {
             $table->timestamp('paid_at')->nullable();
 
             // Gateway information
-            $table->string('gateway')->default('razorpay');
+            $table->string('gateway')->nullable();
 
             $table->text('notes')->nullable();
 
