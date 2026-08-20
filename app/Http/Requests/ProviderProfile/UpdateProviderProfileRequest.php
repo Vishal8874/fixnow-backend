@@ -18,6 +18,7 @@ class UpdateProviderProfileRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'phone' => ['sometimes', 'string', 'max:20', 'unique:users,phone'],
             'about' => ['sometimes', 'required', 'string'],
             'experience_years' => ['sometimes', 'required', 'integer', 'min:0'],
             'profile_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
