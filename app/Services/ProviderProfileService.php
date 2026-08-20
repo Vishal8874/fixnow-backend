@@ -45,8 +45,14 @@ class ProviderProfileService
 
     public function update(User $provider, array $data): ProviderProfile
     {
-
-        \Log::info('Provider profile update data', $data);
+        \Log::info('PROFILE UPDATE DATA', [
+            'about_exists' => array_key_exists('about', $data),
+            'about' => $data['about'] ?? null,
+            'experience_exists' => array_key_exists('experience_years', $data),
+            'experience_years' => $data['experience_years'] ?? null,
+            'image_exists' => array_key_exists('profile_image', $data),
+            'image_type' => isset($data['profile_image']) ? get_class($data['profile_image']) : null,
+        ]);
 
         $profile = $this->getProviderProfile($provider);
 
@@ -88,6 +94,14 @@ class ProviderProfileService
                 return $profile->fresh(['user']);
             }
         }
+        \Log::info('PROFILE BEFORE SAVE', [
+            'id' => $profile->id,
+            'about' => $profile->about,
+            'experience_years' => $profile->experience_years,
+            'profile_image' => $profile->profile_image,
+            'profile_image_public_id' => $profile->profile_image_public_id,
+            'dirty' => $profile->getDirty(),
+        ]);
 
         $profile->save();
 
