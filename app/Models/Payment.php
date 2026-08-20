@@ -19,12 +19,14 @@ class Payment extends Model
      */
     protected $fillable = [
         'booking_id',
+        'razorpay_order_id',
+        'razorpay_payment_id',
         'payment_method',
         'payment_status',
         'amount',
+        'currency',
         'paid_at',
         'gateway',
-        'gateway_transaction_id',
         'notes',
     ];
 
@@ -43,6 +45,9 @@ class Payment extends Model
         ];
     }
 
+    /**
+     * Get the booking associated with the payment.
+     */
     public function booking(): BelongsTo
     {
         return $this->belongsTo(Booking::class);

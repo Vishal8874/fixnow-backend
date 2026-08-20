@@ -13,7 +13,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class PaymentService
 {
-    public function __construct(private readonly ProviderAssignmentService $providerAssignmentService) {}
+    public function __construct(private readonly ProviderAssignmentService $providerAssignmentService, private readonly RazorpayService $razorpayService) {}
 
     public function createForBooking(User $user, Booking $booking, array $data): Payment
     {
@@ -38,6 +38,15 @@ class PaymentService
             }
 
             if ($payment->payment_method === PaymentMethod::ONLINE) {
+                $order = $this->razorpayService->createOrder((float) $ownedBooking->total, 'booking_' . $ownedBooking->id);
+
+                $payment
+                    ->forceFill([
+                        'razorpay_order_id' => $order['id'],
+                        'gateway' => 'razorpay',
+                    ])
+                    ->save();
+
                 $this->updateBookingStatus($ownedBooking, BookingStatus::PENDING_PAYMENT, 'Online payment initiated. Awaiting gateway confirmation.', $user->id);
             }
 
@@ -50,7 +59,7 @@ class PaymentService
         $ownedBooking = $this->ownedBooking($user, $booking);
         $payment = $ownedBooking->payment;
 
-        if (! $payment) {
+        if (!$payment) {
             throw new HttpException(404, 'Resource not found.');
         }
 
@@ -91,12 +100,14 @@ class PaymentService
         }
 
         return DB::transaction(function () use ($payment, $data): Payment {
-            $payment->forceFill([
-                'payment_status' => PaymentStatus::FAILED,
-                'paid_at' => null,
-                'gateway_transaction_id' => $data['gateway_transaction_id'] ?? $payment->gateway_transaction_id,
-                'notes' => $data['notes'] ?? $payment->notes,
-            ])->save();
+            $payment
+                ->forceFill([
+                    'payment_status' => PaymentStatus::FAILED,
+                    'paid_at' => null,
+                    'gateway_transaction_id' => $data['gateway_transaction_id'] ?? $payment->gateway_transaction_id,
+                    'notes' => $data['notes'] ?? $payment->notes,
+                ])
+                ->save();
 
             return $payment->fresh();
         });
@@ -105,14 +116,68 @@ class PaymentService
     protected function processGatewaySuccess(Payment $payment, array $data): Payment
     {
         return DB::transaction(function () use ($payment, $data): Payment {
-            $payment->forceFill([
-                'payment_status' => PaymentStatus::PAID,
-                'paid_at' => now(),
-                'gateway_transaction_id' => $data['gateway_transaction_id'] ?? $payment->gateway_transaction_id,
-                'notes' => $data['notes'] ?? $payment->notes,
-            ])->save();
+            $payment
+                ->forceFill([
+                    'payment_status' => PaymentStatus::PAID,
+                    'paid_at' => now(),
+                    'gateway_transaction_id' => $data['gateway_transaction_id'] ?? $payment->gateway_transaction_id,
+                    'notes' => $data['notes'] ?? $payment->notes,
+                ])
+                ->save();
 
             $this->updateBookingStatus($payment->booking, BookingStatus::PENDING_ASSIGNMENT, 'Online payment confirmed. Booking moved to pending assignment.');
+            $this->attemptAutomaticAssignment($payment->booking->fresh());
+
+            return $payment->fresh();
+        });
+    }
+
+    public function verifyPayment(User $user, Booking $booking, array $data): Payment
+    {
+        $ownedBooking = $this->ownedBooking($user, $booking);
+
+        $payment = $ownedBooking->payment;
+
+        if (!$payment) {
+            throw new HttpException(404, 'Payment not found.');
+        }
+
+        if ($payment->payment_method !== PaymentMethod::ONLINE) {
+            throw new HttpException(409, 'Only online payments can be verified.');
+        }
+
+        if ($payment->payment_status !== PaymentStatus::PENDING) {
+            throw new HttpException(409, 'This payment has already been processed.');
+        }
+
+        if (!$payment->razorpay_order_id) {
+            throw new HttpException(409, 'Razorpay order ID is missing.');
+        }
+
+        $paymentId = $data['razorpay_payment_id'];
+        $signature = $data['razorpay_signature'];
+
+        /*
+         * Verify Razorpay signature.
+         */
+        $isValid = $this->razorpayService->verifyPayment($payment->razorpay_order_id, $paymentId, $signature);
+
+        if (!$isValid) {
+            throw new HttpException(400, 'Payment verification failed.');
+        }
+
+        return DB::transaction(function () use ($payment, $paymentId): Payment {
+            $payment
+                ->forceFill([
+                    'payment_status' => PaymentStatus::PAID,
+                    'razorpay_payment_id' => $paymentId,
+                    'paid_at' => now(),
+                    'gateway' => 'razorpay',
+                ])
+                ->save();
+
+            $this->updateBookingStatus($payment->booking, BookingStatus::PENDING_ASSIGNMENT, 'Online payment verified successfully. Booking moved to pending assignment.');
+
             $this->attemptAutomaticAssignment($payment->booking->fresh());
 
             return $payment->fresh();
@@ -122,12 +187,14 @@ class PaymentService
     protected function processGatewayFailure(Payment $payment, array $data): Payment
     {
         return DB::transaction(function () use ($payment, $data): Payment {
-            $payment->forceFill([
-                'payment_status' => PaymentStatus::FAILED,
-                'paid_at' => null,
-                'gateway_transaction_id' => $data['gateway_transaction_id'] ?? $payment->gateway_transaction_id,
-                'notes' => $data['notes'] ?? $payment->notes,
-            ])->save();
+            $payment
+                ->forceFill([
+                    'payment_status' => PaymentStatus::FAILED,
+                    'paid_at' => null,
+                    'gateway_transaction_id' => $data['gateway_transaction_id'] ?? $payment->gateway_transaction_id,
+                    'notes' => $data['notes'] ?? $payment->notes,
+                ])
+                ->save();
 
             return $payment->fresh();
         });
@@ -144,9 +211,11 @@ class PaymentService
 
     protected function updateBookingStatus(Booking $booking, BookingStatus $status, string $remarks, ?int $createdBy = null): void
     {
-        $booking->forceFill([
-            'status' => $status,
-        ])->save();
+        $booking
+            ->forceFill([
+                'status' => $status,
+            ])
+            ->save();
 
         $booking->statusHistories()->create([
             'status' => $status,

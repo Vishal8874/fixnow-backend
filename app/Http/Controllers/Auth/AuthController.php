@@ -33,7 +33,7 @@ class AuthController extends Controller
         return ApiResponse::success([
             'user' => UserResource::make($result['user']),
             'token' => $result['token'],
-        ], 'Provider account created successfully. Complete onboarding later to start accepting bookings.', 201);
+        ], 'Provider account created successfully. Complete onboarding to start accepting bookings.', 201);
     }
 
     public function login(LoginRequest $request): JsonResponse

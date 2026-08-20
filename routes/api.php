@@ -83,6 +83,7 @@ Route::prefix('customer')
         Route::patch('/bookings/{booking}/cancel', [BookingController::class, 'cancel']);
         Route::post('/bookings/{booking}/payment', [PaymentController::class, 'store']);
         Route::get('/bookings/{booking}/payment', [PaymentController::class, 'show']);
+        Route::post('/bookings/{booking}/payment/verify', [PaymentController::class, 'verify']);
         Route::post('/bookings/{booking}/review', [CustomerReviewController::class, 'store']);
         Route::get('/reviews', [CustomerReviewController::class, 'index']);
         Route::get('/reviews/{review}', [CustomerReviewController::class, 'show']);

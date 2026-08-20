@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Customer;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Payment\CreatePaymentRequest;
+use App\Http\Requests\Payment\VerifyPaymentRequest;
 use App\Http\Resources\PaymentResource;
 use App\Models\Booking;
 use App\Services\PaymentService;
@@ -27,5 +28,11 @@ class PaymentController extends Controller
         $payment = $this->paymentService->showForBooking($request->user(), $booking);
 
         return ApiResponse::success(PaymentResource::make($payment), 'Payment fetched successfully.');
+    }
+    public function verify(VerifyPaymentRequest $request, Booking $booking): JsonResponse
+    {
+        $payment = $this->paymentService->verifyPayment($request->user(), $booking, $request->validated());
+
+        return ApiResponse::success(PaymentResource::make($payment), 'Payment verified successfully.');
     }
 }

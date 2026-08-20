@@ -34,7 +34,6 @@ class ProviderProfileService
                     'profile_image' => $image['url'] ?? null,
                     'profile_image_public_id' => $image['public_id'] ?? null,
                     'about' => $data['about'],
-                    'phone' => $data['phone'] ?? null,
                     'experience_years' => $data['experience_years'],
                     'verification_status' => ProviderVerificationStatus::PENDING,
                     'average_rating' => 0,
@@ -49,8 +48,6 @@ class ProviderProfileService
         \Log::info('PROFILE UPDATE DATA', [
             'about_exists' => array_key_exists('about', $data),
             'about' => $data['about'] ?? null,
-            'phone_exists' => array_key_exists('phone', $data),
-            'phone' => $data['phone'] ?? null,
             'experience_exists' => array_key_exists('experience_years', $data),
             'experience_years' => $data['experience_years'] ?? null,
             'image_exists' => array_key_exists('profile_image', $data),
@@ -68,9 +65,7 @@ class ProviderProfileService
             $profile->experience_years = $data['experience_years'];
         }
 
-        if (array_key_exists('phone', $data)) {
-            $profile->phone = $data['phone'];
-        }
+        
 
         // Handle image
         if (array_key_exists('profile_image', $data) && $data['profile_image'] instanceof UploadedFile) {
@@ -104,7 +99,6 @@ class ProviderProfileService
         \Log::info('PROFILE BEFORE SAVE', [
             'id' => $profile->id,
             'about' => $profile->about,
-            'phone' => $profile->phone,
             'experience_years' => $profile->experience_years,
             'profile_image' => $profile->profile_image,
             'profile_image_public_id' => $profile->profile_image_public_id,
