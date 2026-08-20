@@ -47,32 +47,46 @@ class ProviderProfileService
     {
         $profile = $this->getProviderProfile($provider);
 
-        $profileImage = $profile->profile_image;
-        $profileImagePublicId = $profile->profile_image_public_id;
+        // Update text fields directly
+        if (array_key_exists('about', $data)) {
+            $profile->about = $data['about'];
+        }
 
+        if (array_key_exists('experience_years', $data)) {
+            $profile->experience_years = $data['experience_years'];
+        }
+
+        // Handle image
         if (array_key_exists('profile_image', $data) && $data['profile_image'] instanceof UploadedFile) {
+            $oldPublicId = $profile->profile_image_public_id;
+
             // Upload new image first
             $image = $this->storeProfileImage($data['profile_image']);
 
             if ($image) {
-                // Delete old image after successful upload
-                if ($profileImagePublicId) {
-                    Cloudinary::uploadApi()->destroy($profileImagePublicId);
+                $profile->profile_image = $image['url'];
+                $profile->profile_image_public_id = $image['public_id'];
+
+                // Save database first
+                $profile->save();
+
+                // Delete old image only after successful save
+                if ($oldPublicId) {
+                    try {
+                        Cloudinary::uploadApi()->destroy($oldPublicId);
+                    } catch (\Throwable $e) {
+                        \Log::warning('Failed to delete old Cloudinary image.', [
+                            'public_id' => $oldPublicId,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
                 }
 
-                $profileImage = $image['url'];
-                $profileImagePublicId = $image['public_id'];
+                return $profile->fresh(['user']);
             }
         }
 
-        $profile
-            ->fill([
-                'profile_image' => $profileImage,
-                'profile_image_public_id' => $profileImagePublicId,
-                'about' => $data['about'] ?? $profile->about,
-                'experience_years' => $data['experience_years'] ?? $profile->experience_years,
-            ])
-            ->save();
+        $profile->save();
 
         return $profile->fresh(['user']);
     }
