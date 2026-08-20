@@ -120,6 +120,7 @@ class AuthService
             return User::query()->create([
                 'name' => $data['name'],
                 'email' => $data['email'],
+                'phone' => $data['phone'],
                 'password' => $data['password'],
                 'role' => $role,
                 'status' => $status,
