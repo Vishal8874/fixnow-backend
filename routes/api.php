@@ -94,7 +94,7 @@ Route::prefix('provider')
     ->group(function (): void {
         Route::get('/profile', [ProviderProfileController::class, 'show']);
         Route::post('/profile', [ProviderProfileController::class, 'store']);
-        Route::patch('/profile', [ProviderProfileController::class, 'update']);
+        Route::post('/profile/update', [ProviderProfileController::class, 'update']);
         Route::get('/services', [ProviderServiceController::class, 'index']);
         Route::post('/services', [ProviderServiceController::class, 'store']);
         Route::delete('/services/{providerService}', [ProviderServiceController::class, 'destroy']);
