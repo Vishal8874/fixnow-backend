@@ -18,6 +18,8 @@ class PaymentResource extends JsonResource
                 'method' => $this->payment_method?->value,
                 'status' => $this->payment_status?->value,
                 'amount' => (float) $this->amount,
+                'currency' => $this->currency,
+                'razorpay_order_id' => $this->razorpay_order_id,
                 'paid_at' => $this->paid_at?->toIso8601String(),
             ],
         ];
