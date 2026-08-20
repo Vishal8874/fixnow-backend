@@ -45,6 +45,9 @@ class ProviderProfileService
 
     public function update(User $provider, array $data): ProviderProfile
     {
+
+        \Log::info('Provider profile update data', $data);
+
         $profile = $this->getProviderProfile($provider);
 
         // Update text fields directly
