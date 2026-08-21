@@ -8,6 +8,8 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Illuminate\Http\UploadedFile;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class CategoryService
 {
@@ -17,12 +19,10 @@ class CategoryService
             ->withCount('services')
             ->when($filters['search'] ?? null, function (Builder $query, string $search): void {
                 $query->where(function (Builder $builder) use ($search): void {
-                    $builder
-                        ->where('name', 'like', "%{$search}%")
-                        ->orWhere('slug', 'like', "%{$search}%");
+                    $builder->where('name', 'like', "%{$search}%")->orWhere('slug', 'like', "%{$search}%");
                 });
             })
-            ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
+            ->when($filters['status'] ?? null, fn(Builder $query, string $status) => $query->where('status', $status))
             ->latest('id')
             ->paginate($filters['per_page'] ?? 10)
             ->withQueryString();
@@ -32,14 +32,12 @@ class CategoryService
     {
         return Category::query()
             ->withCount([
-                'services' => fn (Builder $query) => $query->where('status', Status::ACTIVE),
+                'services' => fn(Builder $query) => $query->where('status', Status::ACTIVE),
             ])
             ->where('status', Status::ACTIVE)
             ->when($filters['search'] ?? null, function (Builder $query, string $search): void {
                 $query->where(function (Builder $builder) use ($search): void {
-                    $builder
-                        ->where('name', 'like', "%{$search}%")
-                        ->orWhere('slug', 'like', "%{$search}%");
+                    $builder->where('name', 'like', "%{$search}%")->orWhere('slug', 'like', "%{$search}%");
                 });
             })
             ->latest('id')
@@ -49,10 +47,13 @@ class CategoryService
 
     public function create(array $data): Category
     {
+        $image = $this->storeCategoryIcon($data['icon'] ?? null);
+
         return Category::query()->create([
             'name' => $data['name'],
             'slug' => $this->generateUniqueSlug($data['slug'] ?? null, $data['name']),
-            'icon' => $data['icon'] ?? null,
+            'icon' => $image['url'] ?? null,
+            'icon_public_id' => $image['public_id'] ?? null,
             'description' => $data['description'] ?? null,
             'status' => $data['status'] ?? Status::ACTIVE,
         ]);
@@ -60,15 +61,15 @@ class CategoryService
 
     public function update(Category $category, array $data): Category
     {
-        $category->fill([
-            'name' => $data['name'] ?? $category->name,
-            'slug' => array_key_exists('slug', $data)
-                ? $this->generateUniqueSlug($data['slug'], $data['name'] ?? $category->name, $category->id)
-                : $category->slug,
-            'icon' => $data['icon'] ?? $category->icon,
-            'description' => $data['description'] ?? $category->description,
-            'status' => $data['status'] ?? $category->status,
-        ])->save();
+        $category
+            ->fill([
+                'name' => $data['name'] ?? $category->name,
+                'slug' => array_key_exists('slug', $data) ? $this->generateUniqueSlug($data['slug'], $data['name'] ?? $category->name, $category->id) : $category->slug,
+                'icon' => $data['icon'] ?? $category->icon,
+                'description' => $data['description'] ?? $category->description,
+                'status' => $data['status'] ?? $category->status,
+            ])
+            ->save();
 
         return $category->fresh(['services']);
     }
@@ -88,7 +89,8 @@ class CategoryService
             throw new HttpException(404, 'Resource not found.');
         }
 
-        return $category->services()
+        return $category
+            ->services()
             ->with('category')
             ->where('status', Status::ACTIVE)
             ->when($filters['search'] ?? null, function (Builder $query, string $search): void {
@@ -105,16 +107,27 @@ class CategoryService
         $resolvedSlug = $baseSlug !== '' ? $baseSlug : Str::slug(Str::random(8));
         $counter = 1;
 
-        while (
-            Category::query()
-                ->when($ignoreId, fn (Builder $query) => $query->whereKeyNot($ignoreId))
-                ->where('slug', $resolvedSlug)
-                ->exists()
-        ) {
-            $resolvedSlug = $baseSlug.'-'.$counter;
+        while (Category::query()->when($ignoreId, fn(Builder $query) => $query->whereKeyNot($ignoreId))->where('slug', $resolvedSlug)->exists()) {
+            $resolvedSlug = $baseSlug . '-' . $counter;
             $counter++;
         }
 
         return $resolvedSlug;
+    }
+
+    protected function storeCategoryIcon(mixed $icon): ?array
+    {
+        if (!$icon instanceof UploadedFile) {
+            return null;
+        }
+
+        $result = Cloudinary::uploadApi()->upload($icon->getRealPath(), [
+            'folder' => 'fixnow/categories',
+        ]);
+
+        return [
+            'url' => $result['secure_url'],
+            'public_id' => $result['public_id'],
+        ];
     }
 }
