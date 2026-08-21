@@ -128,9 +128,28 @@ class ServiceService
     }
 
     public function delete(Service $service): void
-    {
-        $service->delete();
+{
+    $publicId = $service->image_public_id;
+
+    if ($publicId) {
+        try {
+            Cloudinary::uploadApi()->destroy($publicId);
+        } catch (\Throwable $e) {
+            \Log::error('Failed to delete service image from Cloudinary.', [
+                'service_id' => $service->id,
+                'public_id' => $publicId,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw new HttpException(
+                500,
+                'Unable to delete service image. Service was not deleted.'
+            );
+        }
     }
+
+    $service->delete();
+}
 
     protected function generateUniqueSlug(?string $slug, string $name, ?int $ignoreId = null): string
     {
