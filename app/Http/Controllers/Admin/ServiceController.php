@@ -40,6 +40,12 @@ class ServiceController extends Controller
 
     public function update(UpdateServiceRequest $request, Service $service): JsonResponse
     {
+        \Log::info('SERVICE UPDATE DATA', [
+            'validated' => $request->validated(),
+            'image' => $request->file('image'),
+            'image_type' => $request->hasFile('image') ? get_class($request->file('image')) : null,
+        ]);
+
         $service = $this->serviceService->update($service, $request->validated());
 
         return ApiResponse::success(ServiceResource::make($service), 'Service updated successfully.');
