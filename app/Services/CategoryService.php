@@ -61,15 +61,50 @@ class CategoryService
 
     public function update(Category $category, array $data): Category
     {
-        $category
-            ->fill([
-                'name' => $data['name'] ?? $category->name,
-                'slug' => array_key_exists('slug', $data) ? $this->generateUniqueSlug($data['slug'], $data['name'] ?? $category->name, $category->id) : $category->slug,
-                'icon' => $data['icon'] ?? $category->icon,
-                'description' => $data['description'] ?? $category->description,
-                'status' => $data['status'] ?? $category->status,
-            ])
-            ->save();
+        $oldPublicId = $category->icon_public_id;
+        $image = null;
+
+        // Update name and automatically regenerate slug
+        if (array_key_exists('name', $data)) {
+            $category->name = $data['name'];
+
+            $category->slug = $this->generateUniqueSlug(null, $data['name'], $category->id);
+        }
+
+        // Update description
+        if (array_key_exists('description', $data)) {
+            $category->description = $data['description'];
+        }
+
+        // Update status
+        if (array_key_exists('status', $data)) {
+            $category->status = $data['status'];
+        }
+
+        // Upload new category icon
+        if (array_key_exists('icon', $data) && $data['icon'] instanceof UploadedFile) {
+            $image = $this->storeCategoryIcon($data['icon']);
+
+            if ($image) {
+                $category->icon = $image['url'];
+                $category->icon_public_id = $image['public_id'];
+            }
+        }
+
+        // Save database first
+        $category->save();
+
+        // Delete old Cloudinary image after successful database update
+        if ($image && $oldPublicId) {
+            try {
+                Cloudinary::uploadApi()->destroy($oldPublicId);
+            } catch (\Throwable $e) {
+                \Log::warning('Failed to delete old category icon.', [
+                    'public_id' => $oldPublicId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
 
         return $category->fresh(['services']);
     }
