@@ -23,7 +23,9 @@ class StoreServiceRequest extends FormRequest
             'category_id' => ['required', 'integer', 'exists:categories,id'],
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', 'unique:services,slug'],
-            'image' => ['nullable', 'string', 'max:255'],
+
+            'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+
             'description' => ['nullable', 'string'],
             'estimated_duration' => ['required', 'integer', 'gt:0'],
             'base_price' => ['required', 'numeric', 'gte:0'],

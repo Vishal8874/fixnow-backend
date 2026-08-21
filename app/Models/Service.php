@@ -18,16 +18,7 @@ class Service extends Model
      *
      * @var list<string>
      */
-    protected $fillable = [
-        'category_id',
-        'name',
-        'slug',
-        'image',
-        'description',
-        'estimated_duration',
-        'base_price',
-        'status',
-    ];
+    protected $fillable = ['category_id', 'name', 'slug', 'image', 'image_public_id', 'description', 'estimated_duration', 'base_price', 'status'];
 
     /**
      * Get the attributes that should be cast.

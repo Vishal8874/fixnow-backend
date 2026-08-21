@@ -28,7 +28,9 @@ class UpdateServiceRequest extends FormRequest
             'category_id' => ['sometimes', 'required', 'integer', 'exists:categories,id'],
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('services', 'slug')->ignore($service->id)],
-            'image' => ['nullable', 'string', 'max:255'],
+
+            'image' => ['sometimes', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+
             'description' => ['nullable', 'string'],
             'estimated_duration' => ['sometimes', 'required', 'integer', 'gt:0'],
             'base_price' => ['sometimes', 'required', 'numeric', 'gte:0'],
