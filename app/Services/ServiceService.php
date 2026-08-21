@@ -82,20 +82,47 @@ class ServiceService
     {
         $categoryId = $data['category_id'] ?? $service->category_id;
         $name = $data['name'] ?? $service->name;
+
         $this->ensureCategoryAllowsServiceName($categoryId, $name, $service->id);
 
-        $service
-            ->fill([
-                'category_id' => $categoryId,
-                'name' => $name,
-                'slug' => array_key_exists('slug', $data) ? $this->generateUniqueSlug($data['slug'], $data['name'] ?? $service->name, $service->id) : $service->slug,
-                'image' => $data['image'] ?? $service->image,
-                'description' => $data['description'] ?? $service->description,
-                'estimated_duration' => $data['estimated_duration'] ?? $service->estimated_duration,
-                'base_price' => $data['base_price'] ?? $service->base_price,
-                'status' => $data['status'] ?? $service->status,
-            ])
-            ->save();
+        $oldPublicId = $service->image_public_id;
+        $newImage = null;
+
+        // Update normal fields
+        $service->fill([
+            'category_id' => $categoryId,
+            'name' => $name,
+            'slug' => array_key_exists('slug', $data) ? $this->generateUniqueSlug($data['slug'], $data['name'] ?? $service->name, $service->id) : $service->slug,
+            'description' => $data['description'] ?? $service->description,
+            'estimated_duration' => $data['estimated_duration'] ?? $service->estimated_duration,
+            'base_price' => $data['base_price'] ?? $service->base_price,
+            'status' => $data['status'] ?? $service->status,
+        ]);
+
+        // Handle new image
+        if (array_key_exists('image', $data) && $data['image'] instanceof UploadedFile) {
+            $newImage = $this->storeServiceImage($data['image']);
+
+            if ($newImage) {
+                $service->image = $newImage['url'];
+                $service->image_public_id = $newImage['public_id'];
+            }
+        }
+
+        // Save database first
+        $service->save();
+
+        // Delete old Cloudinary image only after successful save
+        if ($newImage && $oldPublicId) {
+            try {
+                Cloudinary::uploadApi()->destroy($oldPublicId);
+            } catch (\Throwable $e) {
+                \Log::warning('Failed to delete old service image.', [
+                    'public_id' => $oldPublicId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
 
         return $service->fresh(['category']);
     }
