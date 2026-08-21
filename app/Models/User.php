@@ -23,27 +23,14 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
-    protected $fillable = [
-        'name',
-        'email',
-        'phone',
-        'password',
-        'role',
-        'status',
-        'google_id',
-        'avatar',
-        'last_login_at',
-    ];
+    protected $fillable = ['name', 'email', 'phone', 'password', 'role', 'status', 'google_id', 'avatar', 'last_login_at'];
 
     /**
      * The attributes that should be hidden for serialization.
      *
      * @var list<string>
      */
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+    protected $hidden = ['password', 'remember_token'];
 
     /**
      * Get the attributes that should be cast.
@@ -84,5 +71,10 @@ class User extends Authenticatable
     public function providerProfile(): HasOne
     {
         return $this->hasOne(ProviderProfile::class);
+    }
+
+    public function customerProfile(): HasOne
+    {
+        return $this->hasOne(CustomerProfile::class);
     }
 }

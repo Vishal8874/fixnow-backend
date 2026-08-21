@@ -10,6 +10,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\Customer\BookingController;
 use App\Http\Controllers\Customer\CustomerAddressController;
+use App\Http\Controllers\Customer\CustomerProfileController;
 use App\Http\Controllers\Customer\PaymentController;
 use App\Http\Controllers\Customer\ReviewController as CustomerReviewController;
 use App\Http\Controllers\Gateway\PaymentCallbackController;
@@ -21,8 +22,6 @@ use App\Http\Controllers\Provider\ProviderServiceController;
 use App\Http\Controllers\ServiceController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
-use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
-use Illuminate\Http\UploadedFile;
 
 Route::get('/up', function () {
     return response()->json([
@@ -71,6 +70,8 @@ Route::prefix('admin')
 Route::prefix('customer')
     ->middleware(['auth:sanctum', 'customer'])
     ->group(function (): void {
+        Route::get('/profile', [CustomerProfileController::class, 'show']);
+        Route::patch('/profile', [CustomerProfileController::class, 'update']);
         Route::get('/addresses', [CustomerAddressController::class, 'index']);
         Route::post('/addresses', [CustomerAddressController::class, 'store']);
         Route::get('/addresses/{address}', [CustomerAddressController::class, 'show']);
@@ -116,40 +117,3 @@ Route::prefix('provider')
         Route::patch('/assignments/{assignment}/complete', [AssignmentController::class, 'complete']);
         Route::patch('/assignments/{assignment}/confirm-cod-payment', [AssignmentController::class, 'confirmCodPayment']);
     });
-
-Route::post('/test-cloudinary', function (Request $request) {
-    $file = $request->file('image');
-
-    if (!$file instanceof \Illuminate\Http\UploadedFile) {
-        return response()->json(
-            [
-                'success' => false,
-                'message' => 'No valid image received.',
-            ],
-            400,
-        );
-    }
-
-    try {
-        $result = \CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary::uploadApi()->upload($file->getRealPath(), [
-            'folder' => 'fixnow/test',
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Image uploaded successfully.',
-            'data' => [
-                'url' => $result['secure_url'],
-                'public_id' => $result['public_id'],
-            ],
-        ]);
-    } catch (\Throwable $e) {
-        return response()->json(
-            [
-                'success' => false,
-                'message' => $e->getMessage(),
-            ],
-            500,
-        );
-    }
-});
